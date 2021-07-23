@@ -21,6 +21,3 @@ class BaseComponent:
 
 class Station(BaseComponent, Resource):
     name = "Station"
-
-
-
