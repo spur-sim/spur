@@ -1,18 +1,21 @@
-import networkx as nx
-from simpy.core import Environment
+from simpy import Environment
 
 from .agent import Train
 
 
-class Model(nx.MultiDiGraph, Environment):
+class Model(Environment):
     def __init__(self):
         super().__init__()
-        self.train = Train()
+        self.trains = {}
+        self.components = {}
 
     def print_train(self):
         print(self.train)
         print(type(self.train))
 
-    def add_edge(self, u_for_edge, v_for_edge, key, **attr):
-        print("WHATEVER")
-        return super().add_edge(u_for_edge, v_for_edge, key=key, **attr)
+    def add_train(self, key, component):
+        self.trains[key] = Train(self, component)
+        component.add_train(self.trains[key])
+
+    def add_component(self, key, component):
+        self.components[key] = component
