@@ -1,18 +1,27 @@
 # Set up a toy model
 
 from spur.core import Model
-from spur.core.component.trackway import DummyTrack
+from spur.core.component.trackway import TestTrack
 
 # Instantiate a model
 model = Model()
 
+model.add_component(TestTrack, "1", "2", "A")
+model.add_component(TestTrack, "2", "3", "A")
+# Plop a train onto the component
+model.add_train("CX745", "1", "2", "A")
 
+print(model.G.edges(data=True, keys=True))
 # Add some edges with specific components
-second = DummyTrack()
-first = DummyTrack(next=second)
-model.add_component("first", first)
-model.add_component("second", second)
+# second = DummyTrack(model, "second")
 
-model.add_train("MyTrain", first)
+# first = DummyTrack(model, "first", next=second)
+# model.add_component(second.key, first)
+# model.add_component(first.key, second)
 
+# print(second.key)
+
+# model.add_train("MyTrain", first)
+
+model.start()
 model.run(until=100)
