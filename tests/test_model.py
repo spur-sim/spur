@@ -9,5 +9,4 @@ def test_version():
 
 def test_model_init():
     model = Model()
-    model.print_train()
-    assert model.train.__name__ == "Train"
+    print(model)

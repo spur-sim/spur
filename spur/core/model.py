@@ -1,7 +1,7 @@
 from simpy import Environment
 from networkx import MultiDiGraph
 
-from spur.core.agent import Train
+from spur.core.train import Train
 
 
 class Model(Environment):
@@ -21,9 +21,11 @@ class Model(Environment):
         self.G.add_edge(u, v, key=key, c=c)
         return c
 
-    def add_train(self, uid, u, v, key, route=[]) -> Train:
+    def add_train(
+        self, uid, u, v, key, max_speed, route=[], status=Train.STATUS_STOPPED
+    ) -> Train:
         # Initialize a brand new train
-        t = Train(self, uid, route)
+        t = Train(self, uid, route, max_speed, status)
         # Add it to our dictionary of trains
         self.trains[uid] = t
         return t
