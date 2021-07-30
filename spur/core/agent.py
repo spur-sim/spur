@@ -1,93 +1,51 @@
+from spur.core.base import BaseAgent
 from simpy import Interrupt
-
-
-class BaseAgent:
-    __name__ = "Base Agent Type"
-
-    def __init__(self, model, uid) -> None:
-        self._model = model
-        self._uid = uid
-        self._component = None
-        self._route = []
-
-    def start(self):
-        self.action = self._model.process(self.run())
-
-    def run(self):
-        if self._component is None:
-            raise NotImplementedError
-        raise NotImplementedError
-
-    @property
-    def component(self):
-        return self._component
-
-    @component.setter
-    def component(self, c):
-        self._component = c
-
-    @property
-    def route(self):
-        return self._route
-
-    @route.setter
-    def route(self, route):
-        self._route = route
 
 
 class Train(BaseAgent):
     __name__ = "Train"
 
-    def __init__(self, model, key) -> None:
-        super().__init__(model, key)
+    def __init__(self, model, uid, route) -> None:
+        super().__init__(model, uid, route)
 
     def run(self):
-        while True:
+        """The action method of the train agent.
+
+        Train agents run a simple and continuous process of moving through their
+        prescribed route, alternately requesting access to a component and then
+        calling the `_do()` method of the component to be processed. Agents can
+        be interrupted from their current process and assigned a new route
+        before they start running again.
+        """
+        if self.current_component is None:
             print(
-                f"[{self._model.now}] Requesting use of component {self.component._uid}"
+                f"[{self._model.now}:{self.uid}] No current component found, starting run"
             )
-            with self._component.resource.request() as req:
+        for idx, component in enumerate(self.route):
+            print(f"[{self._model.now}:{self.uid}] Requesting use of {component.uid}")
+
+            # Ask to access the first component in the list
+            with component.resource.request() as req:
                 yield req
 
+                # We're in. Let's update our own information
+                # Release the train from the current component
+                if self.current_component is not None:
+                    self.current_component.release_train(self)
+
+                component.accept_train(self)
+                self.current_component = component
+
                 print(
-                    f"[{self._model.now}] Access to {self.component._uid} granted, rolling now"
+                    f"[{self._model.now}:{self.uid}] Access to {self.current_component._uid} granted, rolling now"
                 )
+                # Now we get the component to shepherd us through
                 try:
-                    yield self._model.process(self._component._do(self))
+                    yield self._model.process(self.current_component._do(self))
                 except Interrupt:
                     print(f"[{self._model.now}] {self._uid} was interrupted")
 
-                # Now we get the next component
-
-
-# class Train:
-#     __name__ = "Train"
-
-#     def __init__(self, model, component):
-#         self.model = model
-
-#         # The component the train is currently attached to
-#         self.component = component
-#         self.component.add_train(self)
-
-#         # The current action that the train is trying to do
-#         self.action = model.process(self.move())
-
-#     def run(self):
-#         print("Starting to roll at", self.model.now)
-#         roll_duration = 5
-#         yield self.model.process(self.move(roll_duration))
-
-#         print("Start rolling at", self.model.now)
-#         trip_duration = 2
-#         yield self.model.timeout(trip_duration)
-
-#     def move(self):
-#         with self.component.request() as request:
-#             yield request
-
-#             print(f"Train enters component {self.component.key} at {self.model.now}")
-
-#             yield self.model.process(self.component.traverse(self.model))
-
-#             print(f"Finished with cpnt {self.component.key} at {self.model.now}")
+                # Finished traversing
+                print(
+                    f"[{self._model.now}:{self.uid}] Finished traversing {self.current_component.uid}"
+                )
