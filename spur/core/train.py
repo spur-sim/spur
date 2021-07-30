@@ -1,12 +1,16 @@
-from spur.core.base import BaseAgent
 from simpy import Interrupt
 
+from spur.core.base import Agent
 
-class Train(BaseAgent):
+
+class Train(Agent):
     __name__ = "Train"
 
-    def __init__(self, model, uid, route) -> None:
-        super().__init__(model, uid, route)
+    def __init__(
+        self, model, uid, route, max_speed, status=Agent.STATUS_STOPPED
+    ) -> None:
+        self._status = status
+        super().__init__(model, uid, route, max_speed, status)
 
     def run(self):
         """The action method of the train agent.
