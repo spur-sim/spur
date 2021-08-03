@@ -1,6 +1,9 @@
 # VSCode Stuff
 .vscode
 
+# Log files that are output by running
+log
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
