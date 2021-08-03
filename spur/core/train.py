@@ -1,6 +1,11 @@
+import logging
+
 from simpy import Interrupt
 
 from spur.core.base import Agent
+
+# Set up module logger
+logger = logging.getLogger(__name__)
 
 
 class Train(Agent):
@@ -9,8 +14,12 @@ class Train(Agent):
     def __init__(
         self, model, uid, route, max_speed, status=Agent.STATUS_STOPPED
     ) -> None:
-        self._status = status
         super().__init__(model, uid, route, max_speed, status)
+        # Override base logging information
+        self.logger = logging.getLogger(f"{logger.name}.{uid}")
+        self.logger.info("I am alive!")
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(f"sim.train.{uid}")
 
     def run(self):
         """The action method of the train agent.
@@ -22,11 +31,9 @@ class Train(Agent):
         before they start running again.
         """
         if self.current_component is None:
-            print(
-                f"[{self._model.now}:{self.uid}] No current component found, starting run"
-            )
+            self.logger.warn("No current component found")
         for idx, component in enumerate(self.route):
-            print(f"[{self._model.now}:{self.uid}] Requesting use of {component.uid}")
+            self.simLog.info(f"Requesting use of {component.uid}")
 
             # Ask to access the first component in the list
             with component.resource.request() as req:
@@ -40,16 +47,14 @@ class Train(Agent):
                 component.accept_train(self)
                 self.current_component = component
 
-                print(
-                    f"[{self._model.now}:{self.uid}] Access to {self.current_component._uid} granted, rolling now"
+                self.simLog.info(
+                    f"Access to {self.current_component._uid} granted, rolling now"
                 )
                 # Now we get the component to shepherd us through
                 try:
                     yield self._model.process(self.current_component._do(self))
                 except Interrupt:
-                    print(f"[{self._model.now}] {self._uid} was interrupted")
+                    self.simLog.warn("I was interrupted!")
 
                 # Finished traversing
-                print(
-                    f"[{self._model.now}:{self.uid}] Finished traversing {self.current_component.uid}"
-                )
+                self.simLog.info(f"Finished traversing {self.current_component.uid}")

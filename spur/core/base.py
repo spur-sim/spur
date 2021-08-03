@@ -3,9 +3,12 @@ Base classes of Spur's component types.
 
 :class:`BaseComponent` defines the abstract base component.
 """
+import logging
 
 from simpy.resources.resource import Resource
 from simpy.resources.store import Store
+
+logger = logging.getLogger(__name__)
 
 
 class StatusException(Exception):
@@ -18,6 +21,12 @@ class BaseItem:
     def __init__(self, model, uid) -> None:
         self._model = model
         self._uid = uid
+
+        # Set base logging information
+        self.logger = logging.getLogger(f"{logger.name}.{uid}")
+        self.logger.info("I am alive!")
+        # Set simulation logging information
+        self.simLog = logging.getLogger("sim.base")
 
     @property
     def model(self):
@@ -127,6 +136,7 @@ class Agent(BaseItem):
         self._max_speed = max_speed
 
     def start(self):
+        self.simLog.info("Started!")
         self.action = self.model.process(self.run())
 
     def run(self):
