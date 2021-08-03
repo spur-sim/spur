@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class Train(Agent):
-    __name__ = "Train"
+    __name__ = "train"
 
     def __init__(
         self, model, uid, route, max_speed, status=Agent.STATUS_STOPPED
@@ -19,7 +19,7 @@ class Train(Agent):
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
         self.logger.info("I am alive!")
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.train.{uid}")
+        self.simLog = logging.getLogger(f"sim.{self.__name__}.{uid}")
 
     def run(self):
         """The action method of the train agent.
