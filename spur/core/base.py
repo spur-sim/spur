@@ -106,6 +106,7 @@ class Agent(BaseItem):
         self._component = None
         self.route = route
         self.status = status
+        self.speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
 
@@ -120,12 +121,14 @@ class Agent(BaseItem):
         self._status = status
 
     @property
-    def route(self):
-        return self._route
+    def speed(self):
+        return self._speed
 
-    @route.setter
-    def route(self, route):
-        self._route = route
+    @speed.setter
+    def speed(self, speed):
+        if speed < 0:
+            raise ValueError("Speed must be non-negative")
+        self._speed = speed
 
     @property
     def max_speed(self):
@@ -133,14 +136,9 @@ class Agent(BaseItem):
 
     @max_speed.setter
     def max_speed(self, max_speed):
+        if max_speed <= 0:
+            raise ValueError("Maximum speed must be positive")
         self._max_speed = max_speed
-
-    def start(self):
-        self.simLog.info("Started!")
-        self.action = self.model.process(self.run())
-
-    def run(self):
-        raise NotImplementedError
 
     @property
     def current_component(self):
@@ -157,3 +155,10 @@ class Agent(BaseItem):
     @route.setter
     def route(self, route):
         self._route = route
+
+    def start(self):
+        self.simLog.info("Started!")
+        self.action = self.model.process(self.run())
+
+    def run(self):
+        raise NotImplementedError

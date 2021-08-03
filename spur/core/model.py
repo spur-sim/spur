@@ -28,17 +28,26 @@ class Model(Environment):
 
         # Set up logging environment for the simulation output
         self.simLog = logging.getLogger("sim")
-        self.simLog.setLevel(logging.INFO)
+        self.simLog.setLevel(logging.DEBUG)
 
         # Set up stout output and formatting
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)
         sh.addFilter(SimLogFilter(self))
         simFormatter = logging.Formatter(
-            "%(now)-5d %(name)-25s  %(message)s", style="%"
+            "%(now)-5d %(name)-30s  %(message)s", style="%"
         )
         sh.setFormatter(simFormatter)
         self.simLog.addHandler(sh)
+
+        fh = logging.FileHandler("log/sim.log", mode="w")
+        fh.setLevel(logging.DEBUG)
+        fh.addFilter(SimLogFilter(self))
+        simFileFormatter = logging.Formatter(
+            "%(now)-5d %(levelname)-6s %(name)-30s  %(message)s", style="%"
+        )
+        fh.setFormatter(simFileFormatter)
+        self.simLog.addHandler(fh)
 
         logger.info("Model setup complete!")
 
@@ -46,11 +55,12 @@ class Model(Environment):
     def trains(self):
         return self._trains
 
-    def add_component(self, component_type, u, v, key):
+    def add_component(self, component_type, u, v, key, *args, **kwargs):
         # Initialize a brand new component of the type passed
-        c = component_type(self, f"{u}-{v}-{key}")
+        c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
         # Add it to the graph
         self.G.add_edge(u, v, key=key, c=c)
+        logger.info(f"Added {c.__name__} {c.uid}")
         return c
 
     def add_train(
