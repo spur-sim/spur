@@ -44,7 +44,7 @@ class Model(Environment):
         fh.setLevel(logging.DEBUG)
         fh.addFilter(SimLogFilter(self))
         simFileFormatter = logging.Formatter(
-            "%(now)-5d %(levelname)-6s %(name)-30s  %(message)s", style="%"
+            "%(now)-5d %(levelname)-8s %(name)-30s  %(message)s", style="%"
         )
         fh.setFormatter(simFileFormatter)
         self.simLog.addHandler(fh)
@@ -63,11 +63,9 @@ class Model(Environment):
         logger.info(f"Added {c.__name__} {c.uid}")
         return c
 
-    def add_train(
-        self, uid, u, v, key, max_speed, route=[], status=Train.STATUS_STOPPED
-    ) -> Train:
+    def add_train(self, uid, u, v, key, max_speed, route=[]) -> Train:
         # Initialize a brand new train
-        t = Train(self, uid, route, max_speed, status)
+        t = Train(self, uid, route, max_speed)
         # Add it to our dictionary of trains
         self.trains[uid] = t
         return t

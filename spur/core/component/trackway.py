@@ -1,4 +1,3 @@
-import random
 import logging
 import math
 
@@ -7,33 +6,14 @@ from simpy import Resource
 from spur.core.base import ResourceComponent
 
 
-class TestTrack(ResourceComponent):
-    __name__ = "TestBlock"
+class BaseTrack(ResourceComponent):
+    __name__ = "BaseTrack"
 
-    def __init__(self, model, key) -> None:
-        resource = Resource(model, capacity=1)
-        super().__init__(model, key, resource)
-
-        # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
-
-    def _do(self, train):
-        """Move a train through the track"""
-        time = random.randint(3, 7)
-        self.simLog.info(f"Moving {train.uid} through will take {time} steps.")
-        yield self._model.timeout(time)
-
-
-class SingleBlockTrack(ResourceComponent):
-    __name__ = "SingleBlock"
-
-    def __init__(self, model, uid, length, track_speed) -> None:
-        resource = Resource(model, capacity=1)
-        self.length = length
+    def __init__(self, model, uid, length, capacity, track_speed) -> None:
+        resource = Resource(model, capacity=capacity)
         self.track_speed = track_speed
+        self.length = length
         super().__init__(model, uid, resource)
-        # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
     @property
     def length(self):
@@ -56,26 +36,22 @@ class SingleBlockTrack(ResourceComponent):
         self._track_speed = track_speed
 
     def _do(self, train):
+        raise NotImplementedError
+
+
+class SingleBlockTrack(BaseTrack):
+    __name__ = "SingleBlock"
+
+    def __init__(self, model, uid, length, track_speed) -> None:
+        super().__init__(model, uid, length, 1, track_speed)
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+
+    def _do(self, train):
         # Move the train through a track based on status and top speed
 
         # # Start by accelerating the train
-        time = 0
-        distance_remaining = self.length
-
-        # Get the time needed to accelerate the train
-        accel_time, accel_distance, truncated = train.accelerate_to(
-            self.track_speed, self.length
-        )
-        time += accel_time  # Traversal time
-        distance_remaining -= accel_distance
-        current_speed = train.speed
-
-        # # TODO: Handle needing to decelerate?
-
-        # Remaining speed calculation
-
-        time += distance_remaining / current_speed
-        time = math.ceil(time)
+        time = math.ceil(train.basic_traversal(self.length, self.track_speed))
 
         self.simLog.debug(f"Traversing me will take {time} steps.")
         yield self._model.timeout(time)

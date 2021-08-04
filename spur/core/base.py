@@ -20,7 +20,7 @@ class BaseItem:
 
     def __init__(self, model, uid) -> None:
         self._model = model
-        self._uid = uid
+        self.uid = uid
 
         # Set base logging information
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
@@ -35,6 +35,10 @@ class BaseItem:
     @property
     def uid(self):
         return self._uid
+
+    @uid.setter
+    def uid(self, uid):
+        self._uid = uid
 
 
 class BaseComponent(BaseItem):
@@ -63,18 +67,6 @@ class BaseComponent(BaseItem):
     def _do(self, *args, **kwargs):
         raise NotImplementedError
 
-    @property
-    def uid(self):
-        return self._uid
-
-    # @uid.setter
-    # def uid(self, uid):
-    #     self._uid = uid
-
-    @property
-    def model(self):
-        return self._model
-
 
 class ResourceComponent(BaseComponent):
     __name__ = "Base Resource Component"
@@ -97,28 +89,14 @@ class StoreComponent(BaseComponent):
 
 
 class Agent(BaseItem):
-    __name__ = "Base Agent Type"
+    __name__ = "Agent"
 
-    STATUS_STOPPED = 1
-    STATUS_MOVING = 2
-
-    def __init__(self, model, uid, route, max_speed, status=STATUS_MOVING) -> None:
+    def __init__(self, model, uid, route, max_speed) -> None:
         self._component = None
         self.route = route
-        self.status = status
         self.speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
-
-    @property
-    def status(self):
-        return self._status
-
-    @status.setter
-    def status(self, status):
-        if status not in [self.STATUS_STOPPED, self.STATUS_MOVING]:
-            raise StatusException(f"Status code {status} is invalid for agents")
-        self._status = status
 
     @property
     def speed(self):
@@ -147,6 +125,14 @@ class Agent(BaseItem):
     @current_component.setter
     def current_component(self, c):
         self._component = c
+
+    @property
+    def next_component(self):
+        idx = self.route.index(self.current_component)
+        if idx == len(self.route) - 1:
+            return None
+        else:
+            return self.route[idx + 1]
 
     @property
     def route(self):
