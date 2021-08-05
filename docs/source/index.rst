@@ -38,6 +38,8 @@ Use Cases
 
    quickstart
    design
+   manual/index
+   reference/index
 
 
 
