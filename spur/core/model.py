@@ -55,6 +55,10 @@ class Model(Environment):
     def trains(self):
         return self._trains
 
+    @property
+    def components(self):
+        return [d["c"] for u, v, d in self.G.edges(data=True)]
+
     def add_component(self, component_type, u, v, key, *args, **kwargs):
         # Initialize a brand new component of the type passed
         c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
