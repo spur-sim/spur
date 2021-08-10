@@ -4,7 +4,7 @@ import math
 from simpy import Interrupt
 
 from spur.core.base import Agent
-from spur.core.component.trackway import BaseTrack
+from spur.core.component.trackway import BasePhysicsTrack
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class Train(Agent):
 
         Train agents run a simple and continuous process of moving through their
         prescribed route, alternately requesting access to a component and then
-        calling the `_do()` method of the component to be processed. Agents can
+        calling the `do()` method of the component to be processed. Agents can
         be interrupted from their current process and assigned a new route
         before they start running again.
         """
@@ -62,7 +62,7 @@ class Train(Agent):
 
                 # Now we get the component to shepherd us through
                 try:
-                    yield self.model.process(self._current_segment.component._do(self))
+                    yield self.model.process(self._current_segment.component.do(self))
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")
 
@@ -152,7 +152,7 @@ class Train(Agent):
             final_speed = 0
         else:
             # Get the next segment's track speed
-            if isinstance(next_segment.component, BaseTrack):
+            if isinstance(next_segment.component, BasePhysicsTrack):
                 # Now we check the occupancy
                 if (
                     next_segment.component.resource.count

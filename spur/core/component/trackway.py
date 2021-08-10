@@ -6,7 +6,7 @@ from simpy import Resource
 from spur.core.base import ResourceComponent
 
 
-class BaseTrack(ResourceComponent):
+class BasePhysicsTrack(ResourceComponent):
     __name__ = "BaseTrack"
 
     def __init__(self, model, uid, length, capacity, track_speed) -> None:
@@ -35,11 +35,25 @@ class BaseTrack(ResourceComponent):
             raise ValueError("Track speed must be positive")
         self._track_speed = track_speed
 
-    def _do(self, train):
+    def do(self, train):
         raise NotImplementedError
 
 
-class SingleBlockTrack(BaseTrack):
+class TimeBlockTrack(ResourceComponent):
+    __name__ = "TimeBlock"
+
+    def __init__(self, model, uid, capacity=1) -> None:
+        resource = Resource(capacity=capacity)
+        super().__init__(model, uid, resource)
+        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+
+    def do(self, train):
+        # Simply yield the train as ready to go
+        yield self.model.timeout(0)
+        self.simLog.debug(f"Train {train.uid} ready to go!")
+
+
+class SingleBlockTrack(BasePhysicsTrack):
     __name__ = "SingleBlock"
 
     def __init__(self, model, uid, length, track_speed) -> None:
@@ -47,7 +61,7 @@ class SingleBlockTrack(BaseTrack):
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
-    def _do(self, train):
+    def do(self, train):
         # Move the train through a track based on status and top speed
 
         # # Start by accelerating the train
@@ -66,7 +80,7 @@ class Yard(ResourceComponent):
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
-    def _do(self, train):
+    def do(self, train):
         # Simply yield the train as ready to go
         yield self.model.timeout(0)
         self.simLog.debug(f"Train {train.uid} ready to go!")

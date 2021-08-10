@@ -45,7 +45,7 @@ class BaseComponent(BaseItem):
     """The base component class used for the model.
 
     A component represents a physical piece of infrastructure that an agent
-    (e.g. a train) moves through. Every component must have a `_do()` method
+    (e.g. a train) moves through. Every component must have a `do()` method
     implemented that the agent interacts with.
 
     :raises NotImplementedError: Methods that should be implemented but are not
@@ -71,7 +71,7 @@ class BaseComponent(BaseItem):
         self.logger.debug(f"Current Agents (before release): {self._agents}")
         return self._agents.pop(agent.uid)
 
-    def _do(self, *args, **kwargs):
+    def do(self, *args, **kwargs):
         raise NotImplementedError
 
 
