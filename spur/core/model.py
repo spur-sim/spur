@@ -1,7 +1,7 @@
 import logging
 
 from simpy import Environment
-from networkx import MultiDiGraph
+from networkx import MultiGraph
 
 from spur.core.train import Train
 
@@ -23,7 +23,7 @@ class SimLogFilter(logging.Filter):
 class Model(Environment):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.G = MultiDiGraph()
+        self.G = MultiGraph()
         self._trains = {}
 
         # Set up logging environment for the simulation output
