@@ -55,6 +55,10 @@ class Model(Environment):
     def trains(self):
         return self._trains
 
+    @property
+    def components(self):
+        return [d["c"] for u, v, d in self.G.edges(data=True)]
+
     def add_component(self, component_type, u, v, key, *args, **kwargs):
         # Initialize a brand new component of the type passed
         c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
@@ -63,7 +67,7 @@ class Model(Environment):
         logger.info(f"Added {c.__name__} {c.uid}")
         return c
 
-    def add_train(self, uid, u, v, key, max_speed, route=[]) -> Train:
+    def add_train(self, uid, u, v, key, max_speed, route) -> Train:
         # Initialize a brand new train
         t = Train(self, uid, route, max_speed)
         # Add it to our dictionary of trains
@@ -75,3 +79,8 @@ class Model(Environment):
         self.simLog.info("Simulation is starting...")
         for key in self.trains.keys():
             self._trains[key].start()
+
+    def run(self, until=None):
+        logger.info("Starting model run")
+        super().run(until)
+        logger.info("Finished model run")

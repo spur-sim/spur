@@ -55,14 +55,21 @@ class BaseComponent(BaseItem):
     __name__ = "Base Component"
 
     def __init__(self, model, uid) -> None:
-        self._trains = {}
+        self._agents = {}
         super().__init__(model, uid)
 
-    def accept_train(self, train):
-        self._trains[train.uid] = train
+    def __repr__(self):
+        return f"Component {self.uid}"
 
-    def release_train(self, train):
-        return self._trains.pop(train.uid)
+    def accept_agent(self, agent):
+        self._agents[agent.uid] = agent
+        self.logger.debug(f"Accepted agent {agent.uid}")
+        self.logger.debug(f"Current Agents (after accept): {self._agents}")
+
+    def release_agent(self, agent):
+        self.logger.debug(f"Releasing agent {agent.uid}")
+        self.logger.debug(f"Current Agents (before release): {self._agents}")
+        return self._agents.pop(agent.uid)
 
     def _do(self, *args, **kwargs):
         raise NotImplementedError
@@ -92,7 +99,7 @@ class Agent(BaseItem):
     __name__ = "Agent"
 
     def __init__(self, model, uid, route, max_speed) -> None:
-        self._component = None
+        self._current_segment = None  # The current segment
         self.route = route
         self.speed = 0
         self.max_speed = max_speed
@@ -119,28 +126,20 @@ class Agent(BaseItem):
         self._max_speed = max_speed
 
     @property
-    def current_component(self):
-        return self._component
-
-    @current_component.setter
-    def current_component(self, c):
-        self._component = c
-
-    @property
-    def next_component(self):
-        idx = self.route.index(self.current_component)
-        if idx == len(self.route) - 1:
-            return None
-        else:
-            return self.route[idx + 1]
-
-    @property
     def route(self):
         return self._route
 
     @route.setter
     def route(self, route):
         self._route = route
+
+    def transfer_to(self, segment):
+        # First we tell the previous component we're done
+        if self._current_segment:
+            self._current_segment.component.release_agent(self)
+        # Then we tell the next component we're here
+        self._current_segment = segment
+        self._current_segment.component.accept_agent(self)
 
     def start(self):
         self.simLog.info("Started!")
