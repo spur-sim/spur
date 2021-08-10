@@ -19,4 +19,7 @@ def toy_model_with_components(toy_model_base):
     toy_model_base.add_component(
         SingleBlockTrack, "2", "3", "A", length=80, track_speed=25
     )
+    toy_model_base.add_component(
+        SingleBlockTrack, "3", "4", "A", length=80, track_speed=25
+    )
     return toy_model_base

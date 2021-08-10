@@ -54,4 +54,4 @@ class SingleBlockTrack(BaseTrack):
         time = math.ceil(train.basic_traversal(self.length, self.track_speed))
 
         self.simLog.debug(f"Traversing me will take {time} steps.")
-        yield self._model.timeout(time)
+        yield self.model.timeout(time)

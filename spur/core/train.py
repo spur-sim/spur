@@ -22,8 +22,12 @@ class Train(Agent):
         # Override base logging information
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
         self.logger.info("I am alive!")
+        self.logger.debug(f"Route: {self.route.uids()}")
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.{self.__name__}.{uid}")
+
+    def __repr__(self):
+        return f"Train {self.uid}"
 
     def run(self):
         """The action method of the train agent.
@@ -34,36 +38,58 @@ class Train(Agent):
         be interrupted from their current process and assigned a new route
         before they start running again.
         """
-        if self.current_component is None:
-            self.simLog.warn(
-                "No current component, will start by accessing first route component."
-            )
-        for idx, component in enumerate(self.route):
-            self.simLog.info(f"Requesting use of {component.uid}")
-
+        for segment in self.route.traverse():
+            # First let's wait for arrival if needed.
+            if segment.arrival is not None:
+                try:
+                    wait_time = max(0, segment.arrival - self.model.now)
+                    self.logger.debug(
+                        f"Arrival | Now: {self.model.now} | Schedule: {segment.arrival} | Wait: {wait_time}"
+                    )
+                    if wait_time > 0:
+                        self.simLog.info(f"Waiting for {wait_time} before arrival")
+                    yield self.model.timeout(wait_time)
+                except Interrupt:
+                    self.simLog.warn("I was interrupted!")
+            if not self._current_segment:
+                self.simLog.warn("Not attached. Will try to access to first component.")
+            self.simLog.info(f"Requesting use of {segment.component.uid}")
             # Ask to access the first component in the list
-            with component.resource.request() as req:
+            with segment.component.resource.request() as req:
                 yield req
 
-                # We're in. Let's update our own information
-                # Release the train from the current component
-                if self.current_component is not None:
-                    self.current_component.release_train(self)
-
-                component.accept_train(self)
-                self.current_component = component
-
+                # We are accepted. Let's update the following
                 self.simLog.info(
-                    f"Access to {self.current_component._uid} granted, rolling now"
+                    f"Access to {segment.component.uid} granted, rolling now"
                 )
+
+                # Transfer to the new segment
+                self.transfer_to(segment)
+
                 # Now we get the component to shepherd us through
                 try:
-                    yield self._model.process(self.current_component._do(self))
+                    yield self.model.process(self._current_segment.component._do(self))
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")
 
+                # Now we handle departure times
+                if segment.departure is not None:
+                    try:
+                        wait_time = max(0, segment.departure - self.model.now)
+                        self.logger.debug(
+                            f"Departure | Now: {self.model.now} | Schedule: {segment.departure} | Wait: {wait_time}"
+                        )
+                        if wait_time > 0:
+                            self.simLog.info(
+                                f"Waiting for {wait_time} before departure"
+                            )
+                        yield self.model.timeout(wait_time)
+                    except Interrupt:
+                        self.simLog.warn("I was interrupted!")
+
                 # Finished traversing
-                self.simLog.info(f"Finished traversing {self.current_component.uid}")
+                self.simLog.info(f"Finished traversing {segment.component.uid}")
+
         self.simLog.info("Finished my route, going idle...")
 
     def get_basic_traversal_time(self, distance, track_speed, final_speed):
@@ -126,21 +152,24 @@ class Train(Agent):
         :rtype: float
         """
         # TODO: Add station stop logic in here?
-        next_component = self.next_component
-        if next_component is None:
+        next_segment = self._current_segment.next
+        if next_segment is None:
             # End of the route
             final_speed = 0
         else:
             # Get the next segment's track speed
-            if isinstance(next_component, BaseTrack):
+            if isinstance(next_segment.component, BaseTrack):
                 # Now we check the occupancy
-                if next_component.resource.count == next_component.resource.capacity:
+                if (
+                    next_segment.component.resource.count
+                    == next_segment.component.resource.capacity
+                ):
                     self.simLog.debug(
-                        f"Next track component ({next_component.uid}) at capacity. Aiming to stop."
+                        f"Next track component ({next_segment.component.uid}) at capacity. Aiming to stop."
                     )
                     final_speed = 0
                 else:
-                    final_speed = next_component.track_speed
+                    final_speed = next_segment.component.track_speed
             else:
                 final_speed = 0  # TODO: Handle other components
         return self.get_basic_traversal_time(distance, track_speed, final_speed)
