@@ -53,15 +53,9 @@ class Train(Agent):
                     self.simLog.warn("I was interrupted!")
             if not self._current_segment:
                 self.simLog.warn("Not attached. Will try to access to first component.")
-            self.simLog.info(f"Requesting use of {segment.component.uid}")
             # Ask to access the first component in the list
             with segment.component.resource.request() as req:
                 yield req
-
-                # We are accepted. Let's update the following
-                self.simLog.info(
-                    f"Access to {segment.component.uid} granted, rolling now"
-                )
 
                 # Transfer to the new segment
                 self.transfer_to(segment)

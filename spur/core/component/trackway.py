@@ -55,3 +55,18 @@ class SingleBlockTrack(BaseTrack):
 
         self.simLog.debug(f"Traversing me will take {time} steps.")
         yield self.model.timeout(time)
+
+
+class Yard(ResourceComponent):
+    __name__ = "Yard"
+
+    def __init__(self, model, uid, capacity) -> None:
+        resource = Resource(model, capacity=capacity)
+        super().__init__(model, uid, resource)
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+
+    def _do(self, train):
+        # Simply yield the train as ready to go
+        yield self.model.timeout(0)
+        self.simLog.debug(f"Train {train.uid} ready to go!")
