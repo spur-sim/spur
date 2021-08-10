@@ -42,15 +42,28 @@ class BasePhysicsTrack(ResourceComponent):
 class TimeBlockTrack(ResourceComponent):
     __name__ = "TimeBlock"
 
-    def __init__(self, model, uid, capacity=1) -> None:
-        resource = Resource(capacity=capacity)
+    def __init__(self, model, uid, travel_time, capacity=1) -> None:
+        resource = Resource(model, capacity=capacity)
         super().__init__(model, uid, resource)
+
+        self.travel_time = travel_time
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+
+    @property
+    def travel_time(self):
+        return self._travel_time
+
+    @travel_time.setter
+    def travel_time(self, travel_time):
+        travel_time = int(travel_time)
+        if travel_time < 0:
+            raise ValueError("Travel time must be positive")
+        self._travel_time = travel_time
 
     def do(self, train):
         # Simply yield the train as ready to go
-        yield self.model.timeout(0)
-        self.simLog.debug(f"Train {train.uid} ready to go!")
+        self.simLog.debug(f"Responding with traversal of {self.travel_time}")
+        yield self.model.timeout(self.travel_time)
 
 
 class SingleBlockTrack(BasePhysicsTrack):
