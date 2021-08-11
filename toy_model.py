@@ -3,6 +3,7 @@
 from spur.core import Model
 from spur.core.route import Route
 from spur.core.component import TimedTrack, SimpleYard, SimpleCrossover
+from spur.core.jitter import UniformJitter
 
 # Instantiate a model
 model = Model()
@@ -12,7 +13,9 @@ south = Route()
 c = model.add_component(SimpleYard, "00", "01", "Y", capacity=10)
 north.append(c)
 south.append(c)
-c = model.add_component(TimedTrack, "01", "08", "N", traversal_time=84)
+c = model.add_component(
+    TimedTrack, "01", "08", "N", traversal_time=84, jitter=UniformJitter(-5, 5)
+)
 north.append(c)
 c = model.add_component(TimedTrack, "01", "08", "S", traversal_time=84)
 south.append(c)
