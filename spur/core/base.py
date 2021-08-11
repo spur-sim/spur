@@ -4,6 +4,7 @@ Base classes of Spur's component types.
 :class:`BaseComponent` defines the abstract base component.
 """
 import logging
+from abc import ABC, abstractmethod
 
 from simpy.resources.resource import Resource
 from simpy.resources.store import Store
@@ -15,7 +16,7 @@ class StatusException(Exception):
     pass
 
 
-class BaseItem:
+class BaseItem(ABC):
     __name__ = "Base Item"
 
     def __init__(self, model, uid) -> None:
@@ -41,7 +42,7 @@ class BaseItem:
         self._uid = uid
 
 
-class BaseComponent(BaseItem):
+class BaseComponent(BaseItem, ABC):
     """The base component class used for the model.
 
     A component represents a physical piece of infrastructure that an agent
@@ -71,8 +72,9 @@ class BaseComponent(BaseItem):
         self.logger.debug(f"Current Agents (before release): {self._agents}")
         return self._agents.pop(agent.uid)
 
+    @abstractmethod
     def do(self, *args, **kwargs):
-        raise NotImplementedError
+        pass
 
 
 class ResourceComponent(BaseComponent):
@@ -95,7 +97,7 @@ class StoreComponent(BaseComponent):
         super().__init__(model, uid)
 
 
-class Agent(BaseItem):
+class Agent(BaseItem, ABC):
     __name__ = "Agent"
 
     def __init__(self, model, uid, route, max_speed) -> None:
@@ -145,5 +147,6 @@ class Agent(BaseItem):
         self.simLog.info("Started!")
         self.action = self.model.process(self.run())
 
+    @abstractmethod
     def run(self):
-        raise NotImplementedError
+        pass
