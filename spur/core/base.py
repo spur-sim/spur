@@ -55,8 +55,9 @@ class BaseComponent(BaseItem, ABC):
 
     __name__ = "Base Component"
 
-    def __init__(self, model, uid) -> None:
+    def __init__(self, model, uid, jitter) -> None:
         self._agents = {}
+        self._jitter = jitter
         super().__init__(model, uid)
 
     def __repr__(self):
@@ -80,9 +81,9 @@ class BaseComponent(BaseItem, ABC):
 class ResourceComponent(BaseComponent):
     __name__ = "Base Resource Component"
 
-    def __init__(self, model, uid, resource: Resource) -> None:
+    def __init__(self, model, uid, resource: Resource, jitter) -> None:
         self._res = resource
-        super().__init__(model, uid)
+        super().__init__(model, uid, jitter)
 
     @property
     def resource(self):

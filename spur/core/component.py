@@ -4,16 +4,19 @@ import math
 from simpy import Resource
 
 from spur.core.base import ResourceComponent
+from spur.core.jitter import NoJitter
 
 
 class TimedTrack(ResourceComponent):
     __name__ = "TimedTrack"
 
-    def __init__(self, model, uid, traversal_time, capacity=1) -> None:
-        resource = Resource(model, capacity=capacity)
-        super().__init__(model, uid, resource)
-
+    def __init__(
+        self, model, uid, traversal_time, capacity=1, jitter=NoJitter()
+    ) -> None:
         self.traversal_time = traversal_time
+        resource = Resource(model, capacity=capacity)
+        super().__init__(model, uid, resource, jitter)
+
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
     @property
@@ -29,18 +32,19 @@ class TimedTrack(ResourceComponent):
 
     def do(self, train):
         # Simply yield the train as ready to go
-        self.simLog.debug(f"Responding with traversal of {self.traversal_time}")
-        yield self.model.timeout(self.traversal_time)
+        time = self.traversal_time + self._jitter.jitter()
+        self.simLog.debug(f"Responding with traversal of {time}")
+        yield self.model.timeout(time)
 
 
 class PhysicsTrack(ResourceComponent):
     __name__ = "PhysicsTrack"
 
-    def __init__(self, model, uid, length, track_speed) -> None:
+    def __init__(self, model, uid, length, track_speed, jitter=NoJitter()) -> None:
         resource = Resource(model, capacity=1)
         self.track_speed = track_speed
         self.length = length
-        super().__init__(model, uid, resource)
+        super().__init__(model, uid, resource, jitter)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -77,9 +81,9 @@ class PhysicsTrack(ResourceComponent):
 class SimpleYard(ResourceComponent):
     __name__ = "SimpleYard"
 
-    def __init__(self, model, uid, capacity) -> None:
+    def __init__(self, model, uid, capacity, jitter=NoJitter()) -> None:
         resource = Resource(model, capacity=capacity)
-        super().__init__(model, uid, resource)
+        super().__init__(model, uid, resource, jitter)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -92,9 +96,9 @@ class SimpleYard(ResourceComponent):
 class SimpleStation(ResourceComponent):
     __name__ = "SimpleStation"
 
-    def __init__(self, model, uid, capacity=1) -> None:
+    def __init__(self, model, uid, jitter=NoJitter(), capacity=1) -> None:
         resource = Resource(model, capacity=capacity)
-        super().__init__(model, uid, resource)
+        super().__init__(model, uid, resource, jitter)
 
     def do(self, train):
         # TODO: Implement station logic
@@ -105,10 +109,10 @@ class SimpleStation(ResourceComponent):
 class SimpleCrossover(ResourceComponent):
     __name__ = "SimpleCrossover"
 
-    def __init__(self, model, uid, traversal_time) -> None:
+    def __init__(self, model, uid, traversal_time, jitter=NoJitter()) -> None:
         self.traversal_time = traversal_time
         resource = Resource(model, capacity=1)
-        super().__init__(model, uid, resource)
+        super().__init__(model, uid, resource, jitter)
 
     @property
     def traversal_time(self):
@@ -122,4 +126,5 @@ class SimpleCrossover(ResourceComponent):
         self._traversal_time = traversal_time
 
     def do(self, train):
-        yield self.model.timeout(self.traversal_time)
+        time = self.traversal_time + self._jitter.jitter()
+        yield self.model.timeout(time)

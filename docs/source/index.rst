@@ -21,26 +21,15 @@ build their own plugins.
 and try it out, check out the :ref:`getting started<Getting Started>` page.
 
 **If you are a developer** are are looking for the application programming
-interface documentation, check out the API reference.
-
-
-Features
-########
-
-
-Use Cases
-#########
+interface documentation, check out the API reference
 
 
 
 .. toctree::
    :maxdepth: 2
-
-   quickstart
-   design
+   
    manual/index
    reference/index
-
 
 
 Indices and tables
