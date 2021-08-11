@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "spur"
-version = "0.1.0"
-description = "Simulation Platfor for Urban Railways"
+version = "0.0.1"
+description = "Simulation Platform for Urban Railways"
 authors = ["Willem Klumpenhouwer <willem.klumpenhouwer@utoronto.ca>"]
 license = "MIT"
 
