@@ -4,7 +4,7 @@ import math
 from simpy import Interrupt
 
 from spur.core.base import Agent
-from spur.core.component.trackway import BasePhysicsTrack
+from spur.core.component import PhysicsTrack
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -152,7 +152,7 @@ class Train(Agent):
             final_speed = 0
         else:
             # Get the next segment's track speed
-            if isinstance(next_segment.component, BasePhysicsTrack):
+            if isinstance(next_segment.component, PhysicsTrack):
                 # Now we check the occupancy
                 if (
                     next_segment.component.resource.count
