@@ -35,7 +35,7 @@ class Model(Environment):
         sh.setLevel(logging.INFO)
         sh.addFilter(SimLogFilter(self))
         simFormatter = logging.Formatter(
-            "%(now)-5d %(name)-30s  %(message)s", style="%"
+            "%(now)-5d %(name)-35s  %(message)s", style="%"
         )
         sh.setFormatter(simFormatter)
         self.simLog.addHandler(sh)
