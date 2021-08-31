@@ -96,9 +96,13 @@ class SimpleYard(ResourceComponent):
 class SimpleStation(ResourceComponent):
     __name__ = "SimpleStation"
 
-    def __init__(self, model, uid, jitter=NoJitter(), capacity=1) -> None:
-        resource = Resource(model, capacity=capacity)
+    def __init__(
+        self, model, uid, mean_boarding, mean_alighting, jitter=NoJitter()
+    ) -> None:
+        resource = Resource(model, capacity=1)
         super().__init__(model, uid, resource, jitter)
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
     def do(self, train):
         # TODO: Implement station logic
