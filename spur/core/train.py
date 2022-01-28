@@ -21,10 +21,14 @@ class Train(Agent):
 
         # Override base logging information
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
-        self.logger.info("I am alive!")
-        self.logger.debug(f"Route: {self.route.uids()}")
+
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.{self.__name__}.{uid}")
+        self.simLog.debug("I am alive!")
+        self.simLog.debug(f"Route: {self.route.uids()}")
+
+        # Override the agent logging information
+        self.agentLog = logging.getLogger(f"agent.{self.__name__}.{uid}")
 
     def __repr__(self):
         return f"Train {self.uid}"
@@ -43,7 +47,7 @@ class Train(Agent):
             if segment.arrival is not None:
                 try:
                     wait_time = max(0, segment.arrival - self.model.now)
-                    self.logger.debug(
+                    self.simLog.debug(
                         f"Arrival | Now: {self.model.now} | Schedule: {segment.arrival} | Wait: {wait_time}"
                     )
                     if wait_time > 0:
@@ -52,13 +56,18 @@ class Train(Agent):
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")
             if not self._current_segment:
-                self.simLog.warn("Not attached. Will try to access to first component.")
+                self.simLog.debug(
+                    "Not attached. Will try to access to first component."
+                )
             # Ask to access the first component in the list
             with segment.component.resource.request() as req:
                 yield req
 
                 # Transfer to the new segment
                 self.transfer_to(segment)
+                self.agentLog.info(
+                    f"IN,{segment.component.uid},{segment.component.__name__}"
+                )
 
                 # Now we get the component to shepherd us through
                 try:
@@ -70,11 +79,11 @@ class Train(Agent):
                 if segment.departure is not None:
                     try:
                         wait_time = max(0, segment.departure - self.model.now)
-                        self.logger.debug(
+                        self.simLog.debug(
                             f"Departure | Now: {self.model.now} | Schedule: {segment.departure} | Wait: {wait_time}"
                         )
                         if wait_time > 0:
-                            self.simLog.info(
+                            self.simLog.debug(
                                 f"Waiting for {wait_time} before departure"
                             )
                         yield self.model.timeout(wait_time)
@@ -82,9 +91,12 @@ class Train(Agent):
                         self.simLog.warn("I was interrupted!")
 
                 # Finished traversing
-                self.simLog.info(f"Finished traversing {segment.component.uid}")
+                self.agentLog.info(
+                    f"OUT,{segment.component.uid},{segment.component.__name__}"
+                )
+                self.simLog.debug(f"Finished traversing {segment.component.uid}")
 
-        self.simLog.info("Finished my route, going idle...")
+        self.simLog.debug("Finished my route, going idle...")
 
     def get_basic_traversal_time(self, distance, track_speed, final_speed):
 

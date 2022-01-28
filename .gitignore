@@ -1,9 +1,7 @@
 # VSCode Stuff
 .vscode
-
 # Log files that are output by running
 log
-data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

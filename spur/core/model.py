@@ -32,26 +32,37 @@ class Model(Environment):
 
         # Set up logging environment for the simulation output
         self.simLog = logging.getLogger("sim")
-        self.simLog.setLevel(logging.DEBUG)
+        self.simLog.setLevel(logging.INFO)
 
         # Set up stout output and formatting
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)
         sh.addFilter(SimLogFilter(self))
         simFormatter = logging.Formatter(
-            "%(now)-5d %(name)-35s  %(message)s", style="%"
+            "%(now)-6d %(name)-35s  %(message)s", style="%"
         )
         sh.setFormatter(simFormatter)
         self.simLog.addHandler(sh)
 
+        # Set up logfile output and formatting
         fh = logging.FileHandler("log/sim.log", mode="w")
-        fh.setLevel(logging.DEBUG)
+        fh.setLevel(logging.INFO)
         fh.addFilter(SimLogFilter(self))
         simFileFormatter = logging.Formatter(
-            "%(now)-5d %(levelname)-8s %(name)-30s  %(message)s", style="%"
+            "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
         )
         fh.setFormatter(simFileFormatter)
         self.simLog.addHandler(fh)
+
+        # Set up logfile output and formatting for debug
+        dfh = logging.FileHandler("log/debug.log", mode="w")
+        dfh.setLevel(logging.DEBUG)
+        dfh.addFilter(SimLogFilter(self))
+        simFileFormatter = logging.Formatter(
+            "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
+        )
+        dfh.setFormatter(simFileFormatter)
+        self.simLog.addHandler(dfh)
 
         logger.info("Model setup complete!")
 
@@ -75,7 +86,7 @@ class Model(Environment):
         c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
         # Add it to the graph
         self.G.add_edge(u, v, key=key, c=c)
-        logger.info(f"Added {c.__name__} {c.uid}")
+        logger.debug(f"Added {c.__name__} {c.uid}")
         return c
 
     def add_train(self, uid, max_speed, route) -> Train:
@@ -90,11 +101,12 @@ class Model(Environment):
         self.simLog.info("Simulation is starting...")
         for key in self.trains.keys():
             self._trains[key].start()
+        self.simLog.info(f"Activated {len(self.trains.keys())} trains")
 
     def run(self, until=None):
-        logger.info("Starting model run")
+        self.simLog.info("Starting model run")
         super().run(until)
-        logger.info("Finished model run")
+        self.simLog.info("Finished model run")
 
     def components_from_json(self, filepath):
         with open(filepath, "r") as infile:

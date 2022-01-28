@@ -117,6 +117,37 @@ class SimpleStation(ResourceComponent):
         yield self.model.timeout(dwell)
 
 
+class TimedStation(ResourceComponent):
+    __name__ = "SimpleStation"
+
+    def __init__(
+        self,
+        model,
+        uid,
+        mean_boarding,
+        mean_alighting,
+        traversal_time,
+        jitter=NoJitter(),
+    ) -> None:
+        resource = Resource(model, capacity=1)
+        super().__init__(model, uid, resource, jitter)
+        self._mean_boarding = mean_boarding
+        self._mean_alighting = mean_alighting
+        self._traversal_time = traversal_time
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+
+    def do(self, train):
+        # Dwell time model from San2016
+        dwell = round(
+            2
+            + 0.4 * self._mean_boarding
+            + 0.4 * self._mean_alighting
+            + self._jitter.jitter()
+        )
+        yield self.model.timeout(dwell)
+
+
 class SimpleCrossover(ResourceComponent):
     __name__ = "SimpleCrossover"
 
