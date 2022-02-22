@@ -3,7 +3,8 @@ import logging
 
 from abc import ABC, abstractmethod
 
-from scipy.stats import norm
+from scipy.stats import norm, lognorm
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +44,15 @@ class GaussianJitter(BaseJitter):
 
     def jitter(self):
         return round(norm.rvs(loc=self._mean, scale=self._std))
+
+
+class LognormalJitter(BaseJitter):
+    def __init__(self, mean=0, std=1) -> None:
+        self._s = np.sqrt(np.log(((std * std) / (mean * mean)) + 1))
+        super().__init__()
+
+    def jitter(self):
+        return round(lognorm.rvs(self._s))
 
 
 class DisruptionJitter(BaseJitter):

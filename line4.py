@@ -1,7 +1,7 @@
 from spur.core import Model
 import os
 
-base_path = "data/models/line4/20220128-2"
+base_path = "data/models/line4/20220208"
 
 m = Model()
 m.components_from_json(os.path.join(base_path, "components.json"))
