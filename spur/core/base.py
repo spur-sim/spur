@@ -16,6 +16,17 @@ class StatusException(Exception):
     pass
 
 
+class SimLogFilter(logging.Filter):
+    def __init__(self, model, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.model = model
+
+    def filter(self, record) -> bool:
+        record.now = self.model.now
+        record.name = record.name.split(".")[-1]
+        return True
+
+
 class BaseItem(ABC):
     __name__ = "Base Item"
 
@@ -25,9 +36,9 @@ class BaseItem(ABC):
 
         # Set base logging information
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
-        self.logger.info("I am alive!")
         # Set simulation logging information
         self.simLog = logging.getLogger("sim.base")
+        self.simLog.debug("I am alive!")
 
     @property
     def model(self):
@@ -65,12 +76,12 @@ class BaseComponent(BaseItem, ABC):
 
     def accept_agent(self, agent):
         self._agents[agent.uid] = agent
-        self.logger.debug(f"Accepted agent {agent.uid}")
-        self.logger.debug(f"Current Agents (after accept): {self._agents}")
+        self.simLog.debug(f"Accepted agent {agent.uid}")
+        self.simLog.debug(f"Current Agents (after accept): {self._agents}")
 
     def release_agent(self, agent):
-        self.logger.debug(f"Releasing agent {agent.uid}")
-        self.logger.debug(f"Current Agents (before release): {self._agents}")
+        self.simLog.debug(f"Releasing agent {agent.uid}")
+        self.simLog.debug(f"Current Agents (before release): {self._agents}")
         return self._agents.pop(agent.uid)
 
     @abstractmethod
@@ -107,6 +118,15 @@ class Agent(BaseItem, ABC):
         self.speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
+        self.agentLog = logging.getLogger("agent")
+        self.agentLog.setLevel(logging.INFO)
+        # Set up logfile output for agents
+        fh = logging.FileHandler("log/agent.log", mode="w")
+        fh.setLevel(logging.INFO)
+        fh.addFilter(SimLogFilter(model))
+        simFileFormatter = logging.Formatter("%(now)d,%(name)s,%(message)s", style="%")
+        fh.setFormatter(simFileFormatter)
+        self.agentLog.addHandler(fh)
 
     @property
     def speed(self):
@@ -145,9 +165,13 @@ class Agent(BaseItem, ABC):
         self._current_segment.component.accept_agent(self)
 
     def start(self):
-        self.simLog.info("Started!")
+        self.simLog.debug("Started!")
         self.action = self.model.process(self.run())
 
     @abstractmethod
     def run(self):
         pass
+
+
+if __name__ == "__main__":
+    pass

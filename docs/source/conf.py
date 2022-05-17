@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.abspath("../.."))
 # -- Project information -----------------------------------------------------
 
 project = "Spur"
-copyright = "2021, Willem Klumpenhouwer"
+copyright = "2022, Willem Klumpenhouwer"
 author = "Willem Klumpenhouwer"
 
 # The full version, including alpha/beta/rc tags
