@@ -7,3 +7,6 @@ Developer Reference
     :maxdepth: 2
 
     hood
+
+.. automodule:: spur.core.component
+   :members:

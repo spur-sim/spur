@@ -1,3 +1,4 @@
+"""Contains modules for """
 import logging
 import math
 
@@ -8,11 +9,29 @@ from spur.core.jitter import NoJitter
 
 
 class TimedTrack(ResourceComponent):
+    """A timed traversal component.
+
+    This component represents a track with a fixed traversal time. Traversal
+    times can be perturbed by provided jitter.
+
+        :param model: The model controller
+        :type model: `spur.core.model.Model`
+        :param uid: Unique component id
+        :type uid: str
+        :param traversal_time: Time steps to traverse the component.
+        :type traversal_time: int
+        :param capacity: Component capacity, defaults to 1
+        :type capacity: int, optional
+        :param jitter: Jitter for traversal time perturbation, defaults to `NoJitter()`
+        :type jitter: `spur.core.jitter.BaseJitter`, optional
+    """
+
     __name__ = "TimedTrack"
 
     def __init__(
         self, model, uid, traversal_time, capacity=1, jitter=NoJitter()
     ) -> None:
+
         self.traversal_time = traversal_time
         resource = Resource(model, capacity=capacity)
         super().__init__(model, uid, resource, jitter)
@@ -94,6 +113,19 @@ class SimpleYard(ResourceComponent):
 
 
 class SimpleStation(ResourceComponent):
+    """Simple station components.
+
+    Simple stations use a linear combination of boarding and alighting times to
+    calcualte dwell times at stations. Currently that model comes from
+    San, H.P. and Mohd Masirin, M.I. (2016). Train Dwell Time Models for Rail Passenger Service
+
+    2 + 0.4 * boarding + 0.4 * alighting + jitter
+
+    .. warning::
+        The SimpleStation component is only reasonable if the simulation time
+        is in seconds.
+    """
+
     __name__ = "SimpleStation"
 
     def __init__(

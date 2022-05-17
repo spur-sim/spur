@@ -11,18 +11,6 @@ class Route:
     def __iter__(self):
         return self
 
-    # def __next__(self):
-    #     try:
-    #         if self._idx is None:
-    #             self._idx = 0
-    #             segment = self.segments[self._idx]
-    #         else:
-    #             segment = self.segments[self._idx]
-    #             self._idx += 1
-    #         return segment
-    #     except IndexError:
-    #         raise StopIteration
-
     def traverse(self):
         if len(self.segments) == 0:
             logger.warn("Trying to traverse an empty list.")
@@ -103,10 +91,20 @@ class Route:
         return [seg.component.uid for seg in self.traverse()]
 
     def reset(self):
-        """Set the route cursor to the beginning of the route."""
+        """Set the route pointer to the beginning of the route."""
         self._node = 0
 
     def append(self, component, arrival=None, departure=None):
+        """Append a component to the current route. Specified arrival and
+        departure times are used to hold trains to a schedule.
+
+        :param component: The component to append to the route.
+        :type component: BaseComponent
+        :param arrival: Expected arrival at component in simulation time, defaults to None
+        :type arrival: int, optional
+        :param departure: Allowed departure time at component in simulation time, defaults to None
+        :type departure: int, optional
+        """        
         if len(self.segments) == 0:
             prev = None
         else:
