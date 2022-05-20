@@ -64,7 +64,7 @@ class BaseComponent(BaseItem, ABC):
     raise an error.
     """
 
-    __name__ = "Base Component"
+    __name__ = "BaseComponent"
 
     def __init__(self, model, uid, jitter) -> None:
         self._agents = {}
@@ -83,6 +83,29 @@ class BaseComponent(BaseItem, ABC):
         self.simLog.debug(f"Releasing agent {agent.uid}")
         self.simLog.debug(f"Current Agents (before release): {self._agents}")
         return self._agents.pop(agent.uid)
+
+    def as_dict(self):
+        d = self.__dict__
+        d.pop("_res", None)
+        d.pop("_agents", None)
+        d.pop("simLog", None)
+        d.pop("logger", None)
+        d.pop('_model', None)
+        # Now build a dictionary with what's left
+        clean = {
+            'type': self.__name__,
+            'uid': d['_uid'],
+            'jitter': d['_jitter'].__name__,
+        }
+        mandatory_keys = ['uid', 'jitter']
+        for k in d.keys():
+            clean_k = k.lstrip('_')
+            if clean_k not in mandatory_keys:
+                if "args" not in clean.keys():
+                    clean['args'] = {clean_k: d[k]}
+                else:
+                    clean['args'][clean_k] = d[k]
+        return clean
 
     @abstractmethod
     def do(self, *args, **kwargs):

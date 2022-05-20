@@ -108,10 +108,15 @@ class Model(Environment):
         super().run(until)
         self.simLog.info("Finished model run")
 
-    def components_from_json(self, filepath):
-        with open(filepath, "r") as infile:
-            components = json.load(infile)
+    @classmethod
+    def from_project_dictionary(cls, project):
+        model = cls()
+        model.add_components_from_list(project["components"])
+        model.add_routes_from_list(project["routes"])
+        model.add_trains_from_list(project["trains"])
+        return model
 
+    def add_components_from_list(self, components):
         for c in components:
             component = getattr(
                 importlib.import_module("spur.core.component"), c["type"]
@@ -129,10 +134,12 @@ class Model(Environment):
                 component, c["u"], c["v"], c["key"], jitter=jitter, **c["args"]
             )
 
-    def routes_from_json(self, filepath):
+    def add_components_from_json_file(self, filepath):
         with open(filepath, "r") as infile:
-            routes = json.load(infile)
+            components = json.load(infile)
+        self.add_components_from_list(components)
 
+    def add_routes_from_list(self, routes):
         components = self.component_dictionary()
         for r in routes:
             new_route = Route()
@@ -145,11 +152,18 @@ class Model(Environment):
                     new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"])
             self._routes[r["name"]] = new_route
 
-    def trains_from_json(self, filepath):
+    def add_routes_from_json_file(self, filepath):
         with open(filepath, "r") as infile:
-            trains = json.load(infile)
+            routes = json.load(infile)
+        self.add_routes_from_list(routes)
 
+    def add_trains_from_list(self, trains):
         for t in trains:
             self.add_train(
                 t["name"], max_speed=t["max_speed"], route=self._routes[t["route"]]
             )
+
+    def add_trains_from_json_file(self, filepath):
+        with open(filepath, "r") as infile:
+            trains = json.load(infile)
+        self.add_trains_from_list(trains)

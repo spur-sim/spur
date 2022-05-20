@@ -39,9 +39,6 @@
          <string>Item Properties</string>
         </property>
         <layout class="QGridLayout" name="gridLayout">
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="lineEdit"/>
-         </item>
          <item row="0" column="0">
           <widget class="QLabel" name="label">
            <property name="text">
@@ -49,25 +46,94 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
-          <widget class="QTreeWidget" name="treeWidget">
+         <item row="3" column="1">
+          <widget class="QTableView" name="tblRoutes"/>
+         </item>
+         <item row="4" column="1">
+          <widget class="QTableView" name="tblTrains"/>
+         </item>
+         <item row="0" column="1">
+          <widget class="QLineEdit" name="lineEdit"/>
+         </item>
+         <item row="2" column="1">
+          <widget class="QTableView" name="tblComponents"/>
+         </item>
+         <item row="5" column="1">
+          <widget class="QTreeWidget" name="treeDetails">
            <column>
             <property name="text">
-             <string>Component Type</string>
+             <string>Property</string>
+            </property>
+           </column>
+           <column>
+            <property name="text">
+             <string>Value</string>
             </property>
            </column>
            <item>
             <property name="text">
-             <string>Track Component</string>
+             <string>type</string>
+            </property>
+            <property name="text">
+             <string>SimpleStation</string>
+            </property>
+            <property name="flags">
+             <set>ItemIsSelectable|ItemIsEditable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>name</string>
+            </property>
+            <property name="text">
+             <string>Pickering North</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>u</string>
+            </property>
+            <property name="text">
+             <string>01</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>v</string>
+            </property>
+            <property name="text">
+             <string>24</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>key</string>
+            </property>
+            <property name="text">
+             <string>N</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>args</string>
+            </property>
+            <property name="text">
+             <string/>
             </property>
             <item>
              <property name="text">
-              <string>Timed Track</string>
+              <string>mean_boarding</string>
+             </property>
+             <property name="text">
+              <string>10</string>
              </property>
             </item>
             <item>
              <property name="text">
-              <string>Physics Track</string>
+              <string>mean_alighting</string>
+             </property>
+             <property name="text">
+              <string>10</string>
              </property>
             </item>
            </item>
@@ -91,8 +157,12 @@
    </property>
    <widget class="QMenu" name="menuActions">
     <property name="title">
-     <string>Actions</string>
+     <string>File</string>
     </property>
+    <addaction name="actionNew_Project"/>
+    <addaction name="actionOpen_Project"/>
+    <addaction name="separator"/>
+    <addaction name="actionQuit_Spur"/>
    </widget>
    <addaction name="menuActions"/>
   </widget>
@@ -124,6 +194,27 @@
   <action name="actionMove_Component">
    <property name="text">
     <string>Move Component</string>
+   </property>
+  </action>
+  <action name="actionNew_Project">
+   <property name="text">
+    <string>New Project</string>
+   </property>
+  </action>
+  <action name="actionOpen_Project">
+   <property name="text">
+    <string>Open Project</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+O</string>
+   </property>
+  </action>
+  <action name="actionQuit_Spur">
+   <property name="text">
+    <string>Quit Spur</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Q</string>
    </property>
   </action>
  </widget>

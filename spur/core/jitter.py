@@ -10,6 +10,9 @@ logger = logging.getLogger(__name__)
 
 
 class BaseJitter(ABC):
+
+    __name__ = "BaseComponent"
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -19,6 +22,9 @@ class BaseJitter(ABC):
 
 
 class NoJitter(BaseJitter):
+
+    __name__ = "NoJitter"
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -27,6 +33,9 @@ class NoJitter(BaseJitter):
 
 
 class UniformJitter(BaseJitter):
+
+    __name__ = "UniformJitter"
+
     def __init__(self, minimum, maximum) -> None:
         self._min = minimum
         self._max = maximum
@@ -37,6 +46,9 @@ class UniformJitter(BaseJitter):
 
 
 class GaussianJitter(BaseJitter):
+
+    __name__ = "GaussianJitter"
+
     def __init__(self, mean=0, std=1) -> None:
         self._mean = mean
         self._std = std
