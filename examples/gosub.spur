@@ -1,6 +1,6 @@
 {
     "type": "SpurProject",
-    "name": "Go Sub Simple",
+    "name": "Go Sub Example",
     "spur_version": "v0.2.0",
     "components": [
         {
