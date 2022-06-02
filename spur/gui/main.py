@@ -3,6 +3,7 @@ import json
 from PyQt6.QtWidgets import QMainWindow, QFileDialog
 
 from spur.gui.table import ComponentTableModel
+from spur.gui.palette import ComponentPaletteModel
 from spur.gui.main_window_ui import Ui_MainWindow
 from spur.core.model import Model
 
@@ -17,8 +18,17 @@ class SpurMainWindow(QMainWindow, Ui_MainWindow):
         self.saved = False
 
         self.actionOpen_Project.triggered.connect(self.open_project)
+        self.canvas.statusUpdate.connect(self.statusbar.showMessage)
+
+        self.treeComponentPalette.setModel(ComponentPaletteModel())
+        self.treeComponentPalette.setHeaderHidden(True)
+        self.treeComponentPalette.expandRecursively(
+            self.treeComponentPalette.rootIndex()
+        )
 
         self.update_ui()
+
+        self.statusbar.showMessage("Welcome")
 
     def open_project(self):
         filepath = QFileDialog.getOpenFileName(

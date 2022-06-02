@@ -150,7 +150,17 @@ class SimpleStation(ResourceComponent):
 
 
 class TimedStation(ResourceComponent):
-    __name__ = "SimpleStation"
+    """Timed station component.
+
+    A timed station simply waits for a specified set of time.
+
+    :param ResourceComponent: _description_
+    :type ResourceComponent: _type_
+    :yield: _description_
+    :rtype: _type_
+    """
+
+    __name__ = "TimedStation"
 
     def __init__(
         self,
