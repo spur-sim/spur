@@ -1,4 +1,5 @@
-"""Contains modules for """
+"""Contains classes describing specific track components and behaviour."""
+
 import logging
 import math
 
@@ -7,6 +8,8 @@ from simpy import Resource
 from spur.core.base import ResourceComponent
 from spur.core.jitter import NoJitter
 
+from spur.core.exceptions import NotPositiveError
+
 
 class TimedTrack(ResourceComponent):
     """A timed traversal component.
@@ -14,16 +17,18 @@ class TimedTrack(ResourceComponent):
     This component represents a track with a fixed traversal time. Traversal
     times can be perturbed by provided jitter.
 
-        :param model: The model controller
-        :type model: `spur.core.model.Model`
-        :param uid: Unique component id
-        :type uid: str
-        :param traversal_time: Time steps to traverse the component.
-        :type traversal_time: int
-        :param capacity: Component capacity, defaults to 1
-        :type capacity: int, optional
-        :param jitter: Jitter for traversal time perturbation, defaults to `NoJitter()`
-        :type jitter: `spur.core.jitter.BaseJitter`, optional
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    traversal_time : int
+        The baseline number of model steps to traverse the component
+    capcity : int
+        The number of agents the component can handle (default 1)
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
     """
 
     __name__ = "TimedTrack"
@@ -57,6 +62,33 @@ class TimedTrack(ResourceComponent):
 
 
 class PhysicsTrack(ResourceComponent):
+    """A physics-based track component simulating train movement
+
+    This component uses properties of the agent using it to determine
+    the length of time to traverse the object.
+
+    **WARNING**: This component is not yet fully developed. Currently only
+        has a capcity of 1.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    length : int
+        The track length, in model distance units
+    track_speed : int
+        The maximum track speed, in model distance units per model time step
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
+
+    Raises
+    ------
+    NotPositiveError
+        If the track length or speed are not strictly positive
+    """
+
     __name__ = "PhysicsTrack"
 
     def __init__(self, model, uid, length, track_speed, jitter=NoJitter()) -> None:
@@ -74,7 +106,7 @@ class PhysicsTrack(ResourceComponent):
     @length.setter
     def length(self, length):
         if length <= 0:
-            raise ValueError("Length must be positive")
+            raise NotPositiveError("Length must be positive")
         self._length = length
 
     @property
@@ -84,13 +116,13 @@ class PhysicsTrack(ResourceComponent):
     @track_speed.setter
     def track_speed(self, track_speed):
         if track_speed <= 0:
-            raise ValueError("Track speed must be positive")
+            raise NotPositiveError("Track speed must be positive")
         self._track_speed = track_speed
 
     def do(self, train):
         # Move the train through a track based on status and top speed
 
-        # # Start by accelerating the train
+        # Start by accelerating the train
         time = math.ceil(train.basic_traversal(self.length, self.track_speed))
 
         self.simLog.debug(f"Traversing me will take {time} steps.")
@@ -98,6 +130,25 @@ class PhysicsTrack(ResourceComponent):
 
 
 class SimpleYard(ResourceComponent):
+    """A yard component with simple behaviour.
+
+    Yards act as sources or sinks of agents, and are the place where
+    agents can be 'spawned' to enter the simulation. Agents placed
+    in SimpleYard components are set as ready to attach to a new agent immediately.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    capcity : int
+        The number of agents the component can handle
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
+
+    """
+
     __name__ = "SimpleYard"
 
     def __init__(self, model, uid, capacity, jitter=NoJitter()) -> None:
@@ -121,9 +172,24 @@ class SimpleStation(ResourceComponent):
 
     2 + 0.4 * boarding + 0.4 * alighting + jitter
 
+    SimpleStation components have a capacity of 1
+
     .. warning::
         The SimpleStation component is only reasonable if the simulation time
         is in seconds.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    mean_boarding : int
+        The average number of passengers boarding the train at the station
+    mean_alighting : int
+        The average number of passengers alighting from the train at the station.
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
     """
 
     __name__ = "SimpleStation"
@@ -154,10 +220,21 @@ class TimedStation(ResourceComponent):
 
     A timed station simply waits for a specified set of time.
 
-    :param ResourceComponent: _description_
-    :type ResourceComponent: _type_
-    :yield: _description_
-    :rtype: _type_
+    **WARNING** This component may not fully work, or may have been
+    depreciated.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    mean_boarding : int
+        The average number of passengers boarding the train at the station
+    mean_alighting : int
+        The average number of passengers alighting from the train at the station.
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
     """
 
     __name__ = "TimedStation"
@@ -191,6 +268,30 @@ class TimedStation(ResourceComponent):
 
 
 class SimpleCrossover(ResourceComponent):
+    """A simplified crossover track component.
+
+    This component acts as a 'bottleneck' track
+    component with a capacity of 1. It is possible
+    to extend the behaviour here to allow for
+    directional passing or non-passing as needed.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    traversal_time : int
+        The number of time steps required to traverse the component
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
+
+    Raises
+    ------
+    NotPositiveError
+        If the traversal time is not strictly positive.
+    """
+
     __name__ = "SimpleCrossover"
 
     def __init__(self, model, uid, traversal_time, jitter=NoJitter()) -> None:
@@ -206,7 +307,7 @@ class SimpleCrossover(ResourceComponent):
     def traversal_time(self, traversal_time):
         traversal_time = int(traversal_time)
         if traversal_time < 0:
-            raise ValueError("Traversal time must be positive")
+            raise NotPositiveError("Traversal time must be positive")
         self._traversal_time = traversal_time
 
     def do(self, train):

@@ -28,6 +28,18 @@ class SimLogFilter(logging.Filter):
 
 
 class BaseItem(ABC):
+    """Abstract base item class for components and agents
+
+    This abstract base class is inhereted by all other simulation objects and
+    should not be used directly.
+
+    Attributes
+    ----------
+    uid : mixed
+        A unique identifier for a given item.
+    logger : `logging.logger`
+    """
+
     __name__ = "Base Item"
 
     def __init__(self, model, uid) -> None:
@@ -60,8 +72,10 @@ class BaseComponent(BaseItem, ABC):
     (e.g. a train) moves through. Every component must have a `do()` method
     implemented that the agent interacts with.
 
-    :raises NotImplementedError: Methods that should be implemented but are not
-    raise an error.
+    Raises
+    ------
+    NotImplementedError
+        If there are methods that should be overriden and implemented but are not.
     """
 
     __name__ = "BaseComponent"
@@ -75,36 +89,65 @@ class BaseComponent(BaseItem, ABC):
         return f"Component {self.uid}"
 
     def accept_agent(self, agent):
+        """Accept a request for an agent to use the component
+
+        Parameters
+        ----------
+        agent : Any child of `BaseAgent` class
+            The agent that is requesting use of the component.
+        """
+
         self._agents[agent.uid] = agent
         self.simLog.debug(f"Accepted agent {agent.uid}")
         self.simLog.debug(f"Current Agents (after accept): {self._agents}")
 
     def release_agent(self, agent):
+        """Release an agent from the component resource
+
+        Parameters
+        ----------
+        agent : Any child of `BaseAgent` class
+            The agent that is being released from this component
+
+        Returns
+        -------
+        `BaseAgent` child
+            The agent that has been released from this component.
+        """
+
         self.simLog.debug(f"Releasing agent {agent.uid}")
         self.simLog.debug(f"Current Agents (before release): {self._agents}")
         return self._agents.pop(agent.uid)
 
     def as_dict(self):
+        """Return a dictionary describing the attributes of the component
+
+        Returns
+        -------
+        dict
+            A dictionary contianing the required keys and values describing the component.
+        """
+    
         d = self.__dict__
         d.pop("_res", None)
         d.pop("_agents", None)
         d.pop("simLog", None)
         d.pop("logger", None)
-        d.pop('_model', None)
+        d.pop("_model", None)
         # Now build a dictionary with what's left
         clean = {
-            'type': self.__name__,
-            'uid': d['_uid'],
-            'jitter': d['_jitter'].__name__,
+            "type": self.__name__,
+            "uid": d["_uid"],
+            "jitter": d["_jitter"].__name__,
         }
-        mandatory_keys = ['uid', 'jitter']
+        mandatory_keys = ["uid", "jitter"]
         for k in d.keys():
-            clean_k = k.lstrip('_')
+            clean_k = k.lstrip("_")
             if clean_k not in mandatory_keys:
                 if "args" not in clean.keys():
-                    clean['args'] = {clean_k: d[k]}
+                    clean["args"] = {clean_k: d[k]}
                 else:
-                    clean['args'][clean_k] = d[k]
+                    clean["args"][clean_k] = d[k]
         return clean
 
     @abstractmethod
