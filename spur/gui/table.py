@@ -1,3 +1,5 @@
+"""Contains resources for table and property views"""
+
 from PyQt6.QtCore import QAbstractTableModel, Qt
 
 

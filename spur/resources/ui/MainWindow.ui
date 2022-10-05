@@ -14,135 +14,22 @@
    <string>Spur</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QHBoxLayout" name="horizontalLayout">
     <item>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <item>
-       <widget class="Canvas" name="canvas">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="cursor" stdset="0">
-         <cursorShape>ArrowCursor</cursorShape>
-        </property>
-        <property name="mouseTracking">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QGroupBox" name="groupBox">
-        <property name="title">
-         <string>Item Properties</string>
-        </property>
-        <layout class="QGridLayout" name="gridLayout">
-         <item row="0" column="0">
-          <widget class="QLabel" name="label">
-           <property name="text">
-            <string>Name</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="1">
-          <widget class="QTableView" name="tblRoutes"/>
-         </item>
-         <item row="4" column="1">
-          <widget class="QTableView" name="tblTrains"/>
-         </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="lineEdit"/>
-         </item>
-         <item row="2" column="1">
-          <widget class="QTableView" name="tblComponents"/>
-         </item>
-         <item row="5" column="1">
-          <widget class="QTreeWidget" name="treeDetails">
-           <column>
-            <property name="text">
-             <string>Property</string>
-            </property>
-           </column>
-           <column>
-            <property name="text">
-             <string>Value</string>
-            </property>
-           </column>
-           <item>
-            <property name="text">
-             <string>type</string>
-            </property>
-            <property name="text">
-             <string>SimpleStation</string>
-            </property>
-            <property name="flags">
-             <set>ItemIsSelectable|ItemIsEditable|ItemIsDragEnabled|ItemIsDropEnabled|ItemIsUserCheckable|ItemIsEnabled</set>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>name</string>
-            </property>
-            <property name="text">
-             <string>Pickering North</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>u</string>
-            </property>
-            <property name="text">
-             <string>01</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>v</string>
-            </property>
-            <property name="text">
-             <string>24</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>key</string>
-            </property>
-            <property name="text">
-             <string>N</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>args</string>
-            </property>
-            <property name="text">
-             <string/>
-            </property>
-            <item>
-             <property name="text">
-              <string>mean_boarding</string>
-             </property>
-             <property name="text">
-              <string>10</string>
-             </property>
-            </item>
-            <item>
-             <property name="text">
-              <string>mean_alighting</string>
-             </property>
-             <property name="text">
-              <string>10</string>
-             </property>
-            </item>
-           </item>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
+     <widget class="Canvas" name="canvas">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="cursor" stdset="0">
+       <cursorShape>ArrowCursor</cursorShape>
+      </property>
+      <property name="mouseTracking">
+       <bool>true</bool>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -167,6 +54,101 @@
    <addaction name="menuActions"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QDockWidget" name="dockWidget">
+   <property name="windowTitle">
+    <string>Object Inspector</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockObjects">
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <widget class="QToolBox" name="toolBox">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="QWidget" name="pgComponents">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>306</width>
+          <height>357</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Components</string>
+        </attribute>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <item>
+          <widget class="QTableView" name="tblComponents"/>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QWidget" name="pgRoutes">
+        <property name="geometry">
+         <rect>
+          <x>0</x>
+          <y>0</y>
+          <width>267</width>
+          <height>357</height>
+         </rect>
+        </property>
+        <attribute name="label">
+         <string>Routes</string>
+        </attribute>
+       </widget>
+       <widget class="QWidget" name="pgTrains">
+        <attribute name="label">
+         <string>Trains</string>
+        </attribute>
+       </widget>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dwPropertyEditor">
+   <property name="windowTitle">
+    <string>Property Editor</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockProperties">
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="QTreeView" name="treeProperties"/>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="dockComponents">
+   <property name="windowTitle">
+    <string>Component Pallette</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_4">
+     <item>
+      <widget class="QTreeView" name="treeComponentPalette">
+       <property name="dragEnabled">
+        <bool>false</bool>
+       </property>
+       <property name="dragDropMode">
+        <enum>QAbstractItemView::NoDragDrop</enum>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectItems</enum>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </widget>
+  </widget>
   <action name="action_add_component">
    <property name="text">
     <string>New Component</string>

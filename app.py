@@ -7,5 +7,5 @@ from spur.gui.main import SpurMainWindow
 if __name__ == "__main__":
     spur_app = QApplication(sys.argv)
     window = SpurMainWindow()
-    window.show()
+    window.showMaximized()
     sys.exit(spur_app.exec())
