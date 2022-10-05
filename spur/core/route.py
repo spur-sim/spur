@@ -1,3 +1,5 @@
+"""Contains classes describing routes and route behaviour."""
+
 import logging
 
 # Set up module logger
@@ -5,6 +7,14 @@ logger = logging.getLogger(__name__)
 
 
 class Route:
+    """A route object containing a set of components for an agent to traverse.
+
+    Attributes
+    ----------
+    segments : list
+        A list of   RouteSegment` objects to traverse in order
+    """
+
     def __init__(self) -> None:
         self.segments = []
 
@@ -12,6 +22,16 @@ class Route:
         return self
 
     def traverse(self):
+        """Traverse the list of segments
+
+        This method traverses through sequential `RouteSegments` and
+        provides instruction to the agents.
+
+        Raises
+        ------
+        StopIteration
+            If the segments list is empty on traversal
+        """
         if len(self.segments) == 0:
             logger.warn("Trying to traverse an empty list.")
             raise StopIteration
@@ -98,13 +118,16 @@ class Route:
         """Append a component to the current route. Specified arrival and
         departure times are used to hold trains to a schedule.
 
-        :param component: The component to append to the route.
-        :type component: BaseComponent
-        :param arrival: Expected arrival at component in simulation time, defaults to None
-        :type arrival: int, optional
-        :param departure: Allowed departure time at component in simulation time, defaults to None
-        :type departure: int, optional
-        """        
+        Parameters
+        ----------
+        component : `BaseComponent`
+            The component to append to the route
+        arrival : int, optional
+            The expected arrival at the component in simulation time, by default `None`
+        departure : int, optional
+            The permitted departure time from the component in simulation time, by default `None`
+        """
+
         if len(self.segments) == 0:
             prev = None
         else:
@@ -118,6 +141,20 @@ class Route:
         self.segments.append(segment)
 
     def insert(self, component, idx, arrival=None, departure=None):
+        """Insert a component to the current route. Specified arrival and
+        departure times are used to hold trains to a schedule.
+
+        Parameters
+        ----------
+        component : `BaseComponent`
+            The component to append to the route
+        idx : int
+            The location in the list to insert the component.
+        arrival : int, optional
+            The expected arrival at the component in simulation time, by default `None`
+        departure : int, optional
+            The permitted departure time from the component in simulation time, by default `None`
+        """
         next = self.segments[idx]
         # Get the prev pointer
         if idx == 0:
@@ -133,6 +170,24 @@ class Route:
 
 
 class RouteSegment:
+    """A class containing information on specific route segments.
+
+    Attributes
+    ----------
+    route : `spur.core.Route`
+        The route the component is a part of
+    component : `spur.core.BaseComponent` child
+        The component this route segment represents
+    prev :  `RouteSegment`
+        The previous route segment
+    next : `RouteSegment`
+        The next route segment
+    arrival : int
+            The expected arrival at the route segment in simulation time
+    departure : int
+            The permitted departure time from the route segment in simulation time
+    """
+    
     __name__ = "RouteSegment"
 
     def __init__(self, route, component, prev, next, arrival, departure):

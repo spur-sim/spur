@@ -11,9 +11,33 @@ logger = logging.getLogger(__name__)
 
 
 class Train(Agent):
+    """A class used to represent a train agent
+
+    Attributes
+    ----------
+    acceleration : float
+        The acceleration of the train (WARNING: NOT USED OR REQURIED)
+    deceleration : float
+        The deceleration of the train (WARNING: NOT USED OR REQUIRED)
+    route : `Route`
+        The route of the train
+    """
+
     __name__ = "train"
 
     def __init__(self, model, uid, route, max_speed) -> None:
+        """
+        Parameters
+        ----------
+        model : `Model`
+            The model the agent is a part of
+        uid : mixed
+            The unique ID of the agent object
+        route : `Route`
+            The route of the train
+        max_speed : int
+            The maximum speed of the train (WARNING: NOT CURRENTLY IMPLEMENTED)
+        """
         super().__init__(model, uid, route, max_speed)
         self.acceleration = 1.3
         self.deceleration = 1.3
@@ -99,6 +123,7 @@ class Train(Agent):
         self.simLog.debug("Finished my route, going idle...")
 
     def get_basic_traversal_time(self, distance, track_speed, final_speed):
+        """WARNING: NOT IMPLEMENTED"""
 
         # Ajudst final requested speed based on our capabilities and allowed
         final_speed = min(final_speed, self.max_speed, track_speed)
@@ -130,8 +155,8 @@ class Train(Agent):
             # Going to be an up and a down such that the sum of the two matches the distance
             numerator = (
                 distance
-                + (self.speed ** 2 / (2 * self.acceleration))
-                + (final_speed ** 2) / (2 * self.deceleration)
+                + (self.speed**2 / (2 * self.acceleration))
+                + (final_speed**2) / (2 * self.deceleration)
             )
             denomenator = (1 / (2 * self.acceleration)) + (1 / (2 * self.deceleration))
             v_peak = math.sqrt(numerator / denomenator)
@@ -150,12 +175,7 @@ class Train(Agent):
         The method then calls `get_basic_traversal_time` to calculate the time
         taken to accelerate and decelerate and traverse the track.
 
-        :param distance: The length of the track (du).
-        :type distance: float
-        :param track_speed: The maximum allowable speed on the track (du/step).
-        :type track_speed: float
-        :return: The time taken to traverse the track (unrounded steps).
-        :rtype: float
+        WARNING: NOT CURRENTLY USED
         """
         # TODO: Add station stop logic in here?
         next_segment = self._current_segment.next
