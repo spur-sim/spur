@@ -3,8 +3,8 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Spur: Simulation Platform for Urban Railways
-============================================
+Spur: Simulate Preliminary and Unfussy Railways
+===============================================
 
 Spur is an event-based mesoscopic railway network simulation platform, designed
 to support real-time operations and medium-term planning by capturing the 
