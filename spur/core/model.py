@@ -11,6 +11,8 @@ from spur.core.train import Train
 from spur.core.jitter import NoJitter
 from spur.core.route import Route
 
+from spur.core.exceptions import NotUniqueIDError
+
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,12 @@ class Model(Environment):
     def components(self):
         return [d["c"] for u, v, d in self.G.edges(data=True)]
 
+    def _uid_unique(self, uid):
+        if uid in self._trains.keys() or uid in self._routes.keys():
+            return False
+        else:
+            return True
+
     def component_dictionary(self):
         components = [d["c"] for u, v, d in self.G.edges(data=True)]
         d = dict()
@@ -107,7 +115,7 @@ class Model(Environment):
         key : str
             The key of the component
         """
-
+        
         # Initialize a brand new component of the type passed
         c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
         # Add it to the graph
