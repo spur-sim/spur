@@ -1,3 +1,4 @@
+import os
 import logging
 
 from .model import Model
@@ -12,7 +13,12 @@ fileFormatter = logging.Formatter(
 )
 
 # Set up info logging to spur.log
-dh = logging.FileHandler("log/debug.log", mode="w")
+try:
+    dh = logging.FileHandler("log/debug.log", mode="w")
+except FileNotFoundError:
+    os.mkdir("log")
+    dh = logging.FileHandler("log/debug.log", mode="w")
+
 dh.setLevel(logging.DEBUG)
 dh.setFormatter(fileFormatter)
 logger.addHandler(dh)
