@@ -7,12 +7,5 @@ the network. The model balances simplification with flexibility, and requires
 substantially less data and expertise than traditional microscopic simulation 
 models.
 
-## Getting Started
-The model is currently under development, and as such there is no current
-"getting started" process. This will be updated as functional releases are made.
-
-If you are helping develop the software, it is recommended to set up a developer
-environment for spur using conda in some capacity.
-
 ## Documentation
-Documentation has not yet been published. Check back for more information.
+Documentation is available at [Read the Docs](https://spur-simulation-for-planning-and-understanding-railways.readthedocs.io/en/latest/manual/introduction.html)
