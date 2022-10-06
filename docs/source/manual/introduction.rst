@@ -24,6 +24,19 @@ The basic simulation process goes as follows: An agent *requests* to use a compo
 Event-Based Modelling
 #####################
 
+Spur is built on the simulation framework of event-based modelling. This means that the simulation keeps a running schedule of discrete events that need to happen and executes on them at the appropriate simulation time. One analogy for this is a turn-based video or board game - things happen in a set sequence, though that sequence can change or adapt based on the situation.
+
+The main advantage of event-based modelling is that it is more scalable and faster to run than models that require keeping track of a larger set of complex physics or environment effects. Of course, the more detail or process-intensive tasks that are included in determining the next action, the more effort it will take to simulate a situation.
 
 Randomness
 ##########
+
+While Spur is designed to support a wide variety of potential applications, one of the key focuses of the design is the incorporation and understanding of how randomness affects a given situation. To model this randomness, Spur draws on an idea commonly used in physics of "perturbations", which involves setting up a model in an ideal and non-random state, and then applying specific perturbations or "bumps" to the system to simulate randomness. In the design and documentation of Spur, we refer to this as "jitter".
+
+.. note::
+    Here's an example: You may have a station component which represents a train station and its interaction with the train as it stops. Typically, the station is designed to hold the train for a certain period of time (say 30 seconds) while the train handles passengers. Passenger loading is notoriously random; the number of passengers and the time they need to board can vary a fair bit. To model this, we apply a "jitter" which adjusts the 30-second baseline by some amount in a random fashion. How that random fashion is chosen is up to you, and can be based on probability distributions or data inputs.
+
+Plug-In Modularity
+##################
+
+Given the design philosophy of flexibility described above, the eventual goal of Spur is to allow for users to create and add their own specific behaviours into the model in the form of plugins. In this way, Spur can be adapted to suit individual research or planning needs.
