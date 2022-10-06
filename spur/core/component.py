@@ -26,9 +26,7 @@ class TimedTrack(ResourceComponent):
     traversal_time : int
         The baseline number of model steps to traverse the component
     capcity : int
-        The number of agents the component can handle (default 1)
-    jitter : `spur.core.jitter.BaseJitter` child, optional
-        The Jitter object used to perturb the base time. Defaults to `NoJitter`
+        The number of agents the component can handlValueErrorime. Defaults to `NoJitter`
     """
 
     __name__ = "TimedTrack"
@@ -51,7 +49,7 @@ class TimedTrack(ResourceComponent):
     def traversal_time(self, traversal_time):
         traversal_time = int(traversal_time)
         if traversal_time < 0:
-            raise ValueError("Travel time must be positive")
+            raise NotPositiveError("Travel time must be positive")
         self._traversal_time = traversal_time
 
     def do(self, train):
