@@ -1,4 +1,4 @@
-# Spur: Simulate Preliminary and Unfussy Railways
+# Spur: Simulation for Planning and Understanding Railways
 
 Spur is an event-based mesoscopic railway network simulation platform, designed
 to support real-time operations and medium-term planning by capturing the 
