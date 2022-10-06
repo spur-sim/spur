@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from simpy.resources.resource import Resource
 from simpy.resources.store import Store
 
-from spur.core.exceptions import NotPositiveError
+from spur.core.exceptions import NotPositiveError, NotUniqueIDError
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +46,8 @@ class BaseItem(ABC):
 
     def __init__(self, model, uid) -> None:
         self._model = model
+        if self._model._uid_unique(uid) == False:
+            raise NotUniqueIDError(f"UID {uid} has been used already.")
         self.uid = uid
 
         # Set base logging information
