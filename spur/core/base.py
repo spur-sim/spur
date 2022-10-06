@@ -9,6 +9,8 @@ from abc import ABC, abstractmethod
 from simpy.resources.resource import Resource
 from simpy.resources.store import Store
 
+from spur.core.exceptions import NotPositiveError
+
 logger = logging.getLogger(__name__)
 
 
@@ -127,7 +129,7 @@ class BaseComponent(BaseItem, ABC):
         dict
             A dictionary contianing the required keys and values describing the component.
         """
-    
+
         d = self.__dict__
         d.pop("_res", None)
         d.pop("_agents", None)
@@ -152,7 +154,7 @@ class BaseComponent(BaseItem, ABC):
 
     @abstractmethod
     def do(self, *args, **kwargs):
-        pass
+        raise NotImplementedError("The do method for this object must be overwritten")
 
 
 class ResourceComponent(BaseComponent):
@@ -201,7 +203,7 @@ class Agent(BaseItem, ABC):
     @speed.setter
     def speed(self, speed):
         if speed < 0:
-            raise ValueError("Speed must be non-negative")
+            raise NotPositiveError("Speed must be non-negative")
         self._speed = speed
 
     @property
@@ -211,7 +213,7 @@ class Agent(BaseItem, ABC):
     @max_speed.setter
     def max_speed(self, max_speed):
         if max_speed <= 0:
-            raise ValueError("Maximum speed must be positive")
+            raise NotPositiveError("Maximum speed must be positive")
         self._max_speed = max_speed
 
     @property
