@@ -10,8 +10,9 @@ from networkx import MultiGraph
 from spur.core.train import Train
 from spur.core.jitter import NoJitter
 from spur.core.route import Route
+from spur.core.tour import Tour
 
-from spur.core.exceptions import NotUniqueIDError
+from spur.core.exceptions import NotUniqueIDError, InputMismatchError
 
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class Model(Environment):
         super().__init__(*args, **kwargs)
         self.G = MultiGraph()
         self._trains = {}
-        self._routes = {}  # Used as a container to keep track of possible routes
+        self._tours = {}  # Used as a container to keep track of possible tours
 
         # Set up logging environment for the simulation output
         self.simLog = logging.getLogger("sim")
@@ -89,7 +90,7 @@ class Model(Environment):
         return [d["c"] for u, v, d in self.G.edges(data=True)]
 
     def _uid_unique(self, uid):
-        if uid in self._trains.keys() or uid in self._routes.keys():
+        if uid in self._trains.keys() or uid in self._tours.keys():
             return False
         else:
             return True
@@ -123,7 +124,7 @@ class Model(Environment):
         logger.debug(f"Added {c.__name__} {c.uid}")
         return c
 
-    def add_train(self, uid, max_speed, route) -> Train:
+    def add_train(self, uid, max_speed, tour) -> Train:
         """Add a train to the model
 
         Parameters
@@ -132,8 +133,8 @@ class Model(Environment):
             Unique ID of the object
         max_speed : int
             The maximum speed of the train
-        route : `Route`
-            The route for the train to follow
+        tour : `Tour`
+            The tour for the train to follow
 
         Returns
         -------
@@ -142,7 +143,7 @@ class Model(Environment):
         """
 
         # Initialize a brand new train
-        t = Train(self, uid, route, max_speed)
+        t = Train(self, uid, tour, max_speed)
         # Add it to our dictionary of trains
         self.trains[uid] = t
         return t
@@ -176,7 +177,7 @@ class Model(Environment):
     def from_project_dictionary(cls, project):
         model = cls()
         model.add_components_from_list(project["components"])
-        model.add_routes_from_list(project["routes"])
+        model.add_routes_and_tours_from_lists(project["routes"], project["tours"])
         model.add_trains_from_list(project["trains"])
         return model
 
@@ -219,39 +220,60 @@ class Model(Environment):
             components = json.load(infile)
         self.add_components_from_list(components)
 
-    def add_routes_from_list(self, routes):
-        """Add routes to the model from a list
+    def add_routes_and_tours_from_lists(self, routes, tours):
+        """Add routes and tours to the model from lists
 
         Parameters
         ----------
         routes : list
-            A list of `Route` objects to add
+            A list of route objects
+        tours : list
+            A list of tour objects
         """
 
-        components = self.component_dictionary()
+        # Temporarily save the raw JSON objects for route definitions into a dictionary
+        routes_raw = {}
         for r in routes:
-            new_route = Route()
-            for c in r["components"]:
-                if "args" in c:
-                    new_route.append(
-                        components[f"{c['u']}-{c['v']}-{c['key']}"], **c["args"]
-                    )
-                else:
-                    new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"])
-            self._routes[r["name"]] = new_route
+            routes_raw[r["name"]] = r
 
-    def add_routes_from_json_file(self, filepath):
-        """Add a set of routes from a JSON file
+        components = self.component_dictionary()
+
+        for t in tours:
+            new_tour = Tour(t["creation_time"], t["deletion_time"])
+            for r in t["routes"]:
+                new_route = Route()
+                route_info = routes_raw[r["name"]]  # Look up the raw route info in dictionary
+                # Number of route args objects supplied in tour must be equal to number of components in route
+                if len(route_info["components"]) != len(r["args"]):
+                    raise InputMismatchError(f"{len(r['args'])} args object(s) are supplied for route {r['name']} "
+                                             f"in tour {t['name']} but route has {len(route_info['components'])} "
+                                             f"components. The number must match.")
+                for c, c_args in zip(route_info["components"], r["args"]):
+                    if c_args is not None:
+                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"], **c_args)
+                    else:
+                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"])
+                new_tour.append(new_route)
+            self._tours[t['name']] = new_tour
+
+    def add_routes_and_tours_from_json_files(self, routes_filepath, tours_filepath):
+        """Add a set of routes and tours from JSON files
 
         Parameters
         ----------
-        filepath : str
-            The path to the JSON file
+        routes_filepath : str
+            The path to the routes JSON file
+        tours_filepath : str
+            The path to the tours JSON file
         """
 
-        with open(filepath, "r") as infile:
-            routes = json.load(infile)
-        self.add_routes_from_list(routes)
+        with open(routes_filepath, "r") as infile_r:
+            routes = json.load(infile_r)
+
+        with open(tours_filepath, "r") as infile_t:
+            tours = json.load(infile_t)
+
+        self.add_routes_and_tours_from_lists(routes, tours)
 
     def add_trains_from_list(self, trains):
         """Add trains to the model from a list of train objects
@@ -264,7 +286,7 @@ class Model(Environment):
 
         for t in trains:
             self.add_train(
-                t["name"], max_speed=t["max_speed"], route=self._routes[t["route"]]
+                t["name"], max_speed=t["max_speed"], tour=self._tours[t["tour"]]
             )
 
     def add_trains_from_json_file(self, filepath):

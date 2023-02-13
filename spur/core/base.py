@@ -182,9 +182,9 @@ class StoreComponent(BaseComponent):
 class Agent(BaseItem, ABC):
     __name__ = "Agent"
 
-    def __init__(self, model, uid, route, max_speed) -> None:
+    def __init__(self, model, uid, tour, max_speed) -> None:
         self._current_segment = None  # The current segment
-        self.route = route
+        self.tour = tour
         self.speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
@@ -219,12 +219,12 @@ class Agent(BaseItem, ABC):
         self._max_speed = max_speed
 
     @property
-    def route(self):
-        return self._route
+    def tour(self):
+        return self._tour
 
-    @route.setter
-    def route(self, route):
-        self._route = route
+    @tour.setter
+    def tour(self, tour):
+        self._tour = tour
 
     def transfer_to(self, segment):
         # First we tell the previous component we're done

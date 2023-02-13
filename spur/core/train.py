@@ -19,13 +19,13 @@ class Train(Agent):
         The acceleration of the train (WARNING: NOT USED OR REQURIED)
     deceleration : float
         The deceleration of the train (WARNING: NOT USED OR REQUIRED)
-    route : `Route`
-        The route of the train
+    tour : `Tour`
+        The tour of the train
     """
 
     __name__ = "train"
 
-    def __init__(self, model, uid, route, max_speed) -> None:
+    def __init__(self, model, uid, tour, max_speed) -> None:
         """
         Parameters
         ----------
@@ -33,12 +33,12 @@ class Train(Agent):
             The model the agent is a part of
         uid : mixed
             The unique ID of the agent object
-        route : `Route`
-            The route of the train
+        tour : `Tour`
+            The tour of the train
         max_speed : int
             The maximum speed of the train (WARNING: NOT CURRENTLY IMPLEMENTED)
         """
-        super().__init__(model, uid, route, max_speed)
+        super().__init__(model, uid, tour, max_speed)
         self.acceleration = 1.3
         self.deceleration = 1.3
         self._speed = 0
@@ -49,7 +49,7 @@ class Train(Agent):
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.{self.__name__}.{uid}")
         self.simLog.debug("I am alive!")
-        self.simLog.debug(f"Route: {self.route.uids()}")
+        # self.simLog.debug(f"Tour: {self.tour.uids()}")
 
         # Override the agent logging information
         self.agentLog = logging.getLogger(f"agent.{self.__name__}.{uid}")
@@ -61,12 +61,12 @@ class Train(Agent):
         """The action method of the train agent.
 
         Train agents run a simple and continuous process of moving through their
-        prescribed route, alternately requesting access to a component and then
+        prescribed tour, alternately requesting access to a component and then
         calling the `do()` method of the component to be processed. Agents can
-        be interrupted from their current process and assigned a new route
+        be interrupted from their current process and assigned a new tour
         before they start running again.
         """
-        for segment in self.route.traverse():
+        for segment in self.tour.traverse():
             # First let's wait for arrival if needed.
             if segment.arrival is not None:
                 try:
@@ -120,7 +120,7 @@ class Train(Agent):
                 )
                 self.simLog.debug(f"Finished traversing {segment.component.uid}")
 
-        self.simLog.debug("Finished my route, going idle...")
+        self.simLog.debug("Finished my tour, going idle...")
 
     def get_basic_traversal_time(self, distance, track_speed, final_speed):
         """WARNING: NOT IMPLEMENTED"""
@@ -180,7 +180,7 @@ class Train(Agent):
         # TODO: Add station stop logic in here?
         next_segment = self._current_segment.next
         if next_segment is None:
-            # End of the route
+            # End of the tour
             final_speed = 0
         else:
             # Get the next segment's track speed

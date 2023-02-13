@@ -12,7 +12,7 @@ class Route:
     Attributes
     ----------
     segments : list
-        A list of   RouteSegment` objects to traverse in order
+        A list of `RouteSegment` objects to traverse in order
     """
 
     def __init__(self) -> None:
@@ -89,7 +89,7 @@ class Route:
         """Get the `RouteSegment` following the current one. If this is the end of
         the route, the segment will be `None`."""
         try:
-            return self.segments[self._node + 1].component
+            return self.segments[self._node + 1]
         except IndexError:
             return None
 
@@ -127,7 +127,6 @@ class Route:
         departure : int, optional
             The permitted departure time from the component in simulation time, by default `None`
         """
-
         if len(self.segments) == 0:
             prev = None
         else:

@@ -15,3 +15,7 @@ class NotAProbabilityError(SpurError):
 
 class NotUniqueIDError(SpurError):
     """Something is not unique that should be"""
+
+
+class InputMismatchError(SpurError):
+    """Input files are not consistent with each other or within themselves"""
