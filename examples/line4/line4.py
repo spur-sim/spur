@@ -19,7 +19,7 @@ base_path = "line4_data"
 
 m = Model()
 m.add_components_from_json_file(os.path.join(base_path, "components.json"))
-m.add_routes_from_json_file(os.path.join(base_path, "routes.json"))
+m.add_routes_and_tours_from_json_files(os.path.join(base_path, "routes.json"), os.path.join(base_path, "tours.json"))
 m.add_trains_from_json_file(os.path.join(base_path, "trains.json"))
 
 m.start()
