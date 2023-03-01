@@ -1,6 +1,6 @@
 # environment.yml
 
-name: spur-env # this is just a name for the environment
+name: readthedocs # this is just a name for the environment
 dependencies:
   - sphinx_rtd_theme
   - python=3.5

@@ -13,18 +13,19 @@ the network while maintaining a paramatertized view of rail movements and dynami
 The model balances simplification with flexibility, and requires substantially 
 less data and expertise than traditional microscopic simulation models.
 
+Spur is currently **under initial development**. This means that while features
+are available and can in principle be used for simulation purposes, the design of the
+simulation and codebase are likely to change rapidly without much thought for backwards
+compatability or overall impacts. 
+
+This documentation serves as a development reference, technical documentation source, and
+eventual user guide for the software platform.
+
 The documentation here is designed both as a user manual and as a technical
 documentation source for developers wishing to adapt or extend the software or
 build their own plugins.
 
-To get started with a simlulation, have a look at the :ref:`getting started<Getting Started>`
-section which outlines the basic requirements needed to install 
-
-**If you are getting started with Spur** and would just like to build a simulation
-and try it out, check out the :ref:`getting started<Getting Started>` page.
-
-**If you are a developer** are are looking for the application programming
-interface documentation, please check the PI
+If you are interested in contributing to the project, please consult our :ref:`contribution guide<Contributing to Spur>`.
 
 
 
