@@ -1,15 +1,13 @@
 # environment.yml
 
 name: readthedocs # this is just a name for the environment
+channels:
+  - conda-forge
+  - nodefaults
 dependencies:
   - python=3.10
   - networkx
-  - pip
   - simpy
   - scipy
   - pip:
     - pyqt6
-  - numpydoc
-  - pytest
-  - sphinx
-  - sphinx_rtd_theme
