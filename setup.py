@@ -10,7 +10,7 @@ setuptools.setup(
     version=__version__,
     author="Willem Klumpenhouwer",
     author_email="willem.klumpenhouwer@utoronto.ca",
-    description="Spur: Simulate Preliminary and Unfussy Railways",
+    description="Spur: Simulation for Planning and Understanding Railways",
     long_description=long_description,
     long_description_content_type="text/markdown",
     packages=setuptools.find_packages(),

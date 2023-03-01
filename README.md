@@ -8,4 +8,4 @@ substantially less data and expertise than traditional microscopic simulation
 models.
 
 ## Documentation
-Documentation is available at [Read the Docs](https://spur-simulation-for-planning-and-understanding-railways.readthedocs.io/en/latest/manual/introduction.html)
+Documentation is available at [Read the Docs](https://spur-sim.readthedocs.io/en/latest/)
