@@ -2,11 +2,14 @@
 
 name: readthedocs # this is just a name for the environment
 dependencies:
-  - sphinx_rtd_theme
-  - python=3.5
-  - pyqt=4
-  - numpy
+  - python=3.10
+  - networkx
+  - pip
+  - simpy
+  - scipy
   - pip:
-      - sphinx
-      - recommonmark
-      - https://bitbucket.org/fchampalimaud/logging-bootstrap/get/master.zip
+    - pyqt6
+  - numpydoc
+  - pytest
+  - sphinx
+  - sphinx_rtd_theme
