@@ -4,4 +4,5 @@ Module Contents
 .. toctree::
     :glob:
     
-    components
+    core
+    gui
