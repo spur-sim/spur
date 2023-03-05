@@ -48,7 +48,7 @@ The easiest way to create a development environment is by using `Mamba Forge <ht
     
     mamba env create -f ci/python_310_dev.YAML
 
-This will create an environment called ``spur-dev`` and won't mess with any of your existing Python installations or environemnts. It includes all the necessary dependencies for Spur as well as some additional packages for building docs, running tests, and formatting code. You can start working on (and with) Spur with this environment after you activate it::
+This will create an environment called ``spur-dev`` and won't mess with any of your existing Python installations or environments. It includes all the necessary dependencies for Spur as well as some additional packages for building docs, running tests, and formatting code. You can start working on (and with) Spur with this environment after you activate it::
 
     conda activate spur-dev
 
@@ -73,7 +73,7 @@ You can run the test suite from the main project directory using::
 4. Updating the Documentation
 #############################
 
-Spur documentation resides in the ``docs`` folder. Changes to the documentation can be made by finding the appropriate file within this documentation folder. Spur uses reStructureText syntax (`explained here <http://www.sphinx-doc.org/en/stable/rest.html#rst-primer>`_) as well as documentation strings for code formatted using the (`example here <https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html>_`).
+Spur documentation resides in the ``docs`` folder. Changes to the documentation can be made by finding the appropriate file within this documentation folder. Spur uses reStructureText syntax (`explained here <http://www.sphinx-doc.org/en/stable/rest.html#rst-primer>`_) as well as documentation strings for code formatted using the (`example here <https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_numpy.html>`_).
 
 Once you have updated the documents, make sure they render correctly by building the documentation using Sphinx (installed with the development environment) using::
 
