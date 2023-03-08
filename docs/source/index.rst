@@ -16,10 +16,7 @@ less data and expertise than traditional microscopic simulation models.
 Spur is currently **under initial development**. This means that while features
 are available and can in principle be used for simulation purposes, the design of the
 simulation and codebase are likely to change rapidly without much thought for backwards
-compatability or overall impacts. 
-
-This documentation serves as a development reference, technical documentation source, and
-eventual user guide for the software platform.
+compatability or overall impacts.
 
 The documentation here is designed both as a user manual and as a technical
 documentation source for developers wishing to adapt or extend the software or
