@@ -1,12 +1,8 @@
-Developer Reference
-===================
-
-**Release**: |release|
+Module Contents
+===============
 
 .. toctree::
-    :maxdepth: 2
-
-    hood
-
-.. automodule:: spur.core.component
-   :members:
+    :glob:
+    
+    core
+    gui

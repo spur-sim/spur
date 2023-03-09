@@ -1,12 +1,13 @@
 # environment.yml
 
-name: spur-env # this is just a name for the environment
+name: readthedocs # this is just a name for the environment
+channels:
+  - conda-forge
+  - nodefaults
 dependencies:
-  - sphinx_rtd_theme
-  - python=3.5
-  - pyqt=4
-  - numpy
+  - python=3.10
+  - networkx
+  - simpy
+  - scipy
   - pip:
-      - sphinx
-      - recommonmark
-      - https://bitbucket.org/fchampalimaud/logging-bootstrap/get/master.zip
+    - pyqt6
