@@ -8,7 +8,7 @@ from simpy import Resource
 from spur.core.base import ResourceComponent
 from spur.core.jitter import NoJitter
 
-from spur.core.exceptions import NotPositiveError
+from spur.core.exception import NotPositiveError
 
 
 class TimedTrack(ResourceComponent):

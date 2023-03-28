@@ -2,7 +2,7 @@
 from spur import __version__
 from spur.core import Model
 from spur.core.route import Route
-from spur.core.exceptions import NotUniqueIDError
+from spur.core.exception import NotUniqueIDError
 
 import pytest
 

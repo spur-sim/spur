@@ -2,7 +2,7 @@
 
 import logging
 
-from spur.core.exceptions import InputMismatchError
+from spur.core.exception import InputMismatchError
 
 # Set up module logger
 logger = logging.getLogger(__name__)

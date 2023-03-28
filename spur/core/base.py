@@ -9,7 +9,7 @@ from abc import ABC, abstractmethod
 from simpy.resources.resource import Resource
 from simpy.resources.store import Store
 
-from spur.core.exceptions import NotPositiveError, NotUniqueIDError
+from spur.core.exception import NotPositiveError, NotUniqueIDError
 
 logger = logging.getLogger(__name__)
 
