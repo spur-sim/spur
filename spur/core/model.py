@@ -12,7 +12,7 @@ from spur.core.jitter import NoJitter
 from spur.core.route import Route
 from spur.core.tour import Tour
 
-from spur.core.exceptions import NotUniqueIDError, InputMismatchError
+from spur.core.exception import NotUniqueIDError, InputMismatchError
 
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)

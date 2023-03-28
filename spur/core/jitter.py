@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from scipy.stats import norm, lognorm
 import numpy as np
 
-from spur.core.exceptions import NotAProbabilityError
+from spur.core.exception import NotAProbabilityError
 
 logger = logging.getLogger(__name__)
 
