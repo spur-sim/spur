@@ -66,6 +66,8 @@ class Train(Agent):
         be interrupted from their current process and assigned a new tour
         before they start running again.
         """
+        prev_req = None
+
         for segment in self.tour.traverse():
             # First let's wait for arrival if needed.
             if segment.arrival is not None:
@@ -83,42 +85,51 @@ class Train(Agent):
                 self.simLog.debug(
                     "Not attached. Will try to access to first component."
                 )
-            # Ask to access the first component in the list
-            with segment.component.resource.request() as req:
-                yield req
+            # Ask to access the current component in the list
+            req = segment.component.resource.request()
+            yield req
 
-                # Transfer to the new segment
-                self.transfer_to(segment)
-                self.agentLog.info(
-                    f"IN,{segment.component.uid},{segment.component.__name__}"
-                )
+            # Transfer to the new segment
+            self.transfer_to(segment)
+            # Release the previous segment's resource once train is in the new segment
+            if prev_req is not None:
+                segment.prev.component.resource.release(prev_req)
+            self.agentLog.info(
+                f"IN,{segment.component.uid},{segment.component.__name__}"
+            )
 
-                # Now we get the component to shepherd us through
+            # Now we get the component to shepherd us through
+            try:
+                yield self.model.process(self._current_segment.component.do(self))
+            except Interrupt:
+                self.simLog.warn("I was interrupted!")
+
+            # Now we handle departure times
+            if segment.departure is not None:
                 try:
-                    yield self.model.process(self._current_segment.component.do(self))
+                    wait_time = max(0, segment.departure - self.model.now)
+                    self.simLog.debug(
+                        f"Departure | Now: {self.model.now} | Schedule: {segment.departure} | Wait: {wait_time}"
+                    )
+                    if wait_time > 0:
+                        self.simLog.debug(
+                            f"Waiting for {wait_time} before departure"
+                        )
+                    yield self.model.timeout(wait_time)
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")
 
-                # Now we handle departure times
-                if segment.departure is not None:
-                    try:
-                        wait_time = max(0, segment.departure - self.model.now)
-                        self.simLog.debug(
-                            f"Departure | Now: {self.model.now} | Schedule: {segment.departure} | Wait: {wait_time}"
-                        )
-                        if wait_time > 0:
-                            self.simLog.debug(
-                                f"Waiting for {wait_time} before departure"
-                            )
-                        yield self.model.timeout(wait_time)
-                    except Interrupt:
-                        self.simLog.warn("I was interrupted!")
+            # Finished traversing
+            self.agentLog.info(
+                f"OUT,{segment.component.uid},{segment.component.__name__}"
+            )
+            self.simLog.debug(f"Finished traversing {segment.component.uid}")
 
-                # Finished traversing
-                self.agentLog.info(
-                    f"OUT,{segment.component.uid},{segment.component.__name__}"
-                )
-                self.simLog.debug(f"Finished traversing {segment.component.uid}")
+            # Store the Request to be released in the next loop iteration
+            prev_req = req
+
+        # End of the tour - Release the Request from the last segment
+        self._current_segment.component.resource.release(prev_req)
 
         self.simLog.debug("Finished my tour, going idle...")
 
