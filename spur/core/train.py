@@ -86,7 +86,7 @@ class Train(Agent):
                     "Not attached. Will try to access to first component."
                 )
             # Ask to access the current component in the list
-            req = segment.component.resource.request()
+            req = segment.component.resource.request(self)
             yield req
 
             # Transfer to the new segment

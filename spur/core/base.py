@@ -5,8 +5,10 @@ Base classes of Spur's component types.
 """
 import logging
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING, List
 
-from simpy.resources.resource import Resource
+from simpy.core import BoundClass, Environment
+from simpy.resources.resource import Resource, Request, Release
 from simpy.resources.store import Store
 
 from spur.core.exception import NotPositiveError, NotUniqueIDError
@@ -154,6 +156,26 @@ class BaseComponent(BaseItem, ABC):
                     clean["args"][clean_k] = d[k]
         return clean
 
+    def check_usage_eligibility(self, agent: 'Agent'):
+        """Check whether `agent` is eligible to use this component based on component state.
+
+        Always returns True by default, meaning the decision to accept the agent's
+        request is purely based on resource capacity. Can be overriden in child classes to
+        include custom logic.
+
+        Parameters
+        ----------
+        agent : Any child of `Agent` class
+            The agent that is requesting use of the component.
+
+        Returns
+        -------
+        bool
+            Whether `agent` is eligible to use the component.
+        """
+
+        return True
+
     @abstractmethod
     def do(self, *args, **kwargs):
         raise NotImplementedError("The do method for this object must be overwritten")
@@ -162,7 +184,7 @@ class BaseComponent(BaseItem, ABC):
 class ResourceComponent(BaseComponent):
     __name__ = "Base Resource Component"
 
-    def __init__(self, model, uid, resource: Resource, jitter) -> None:
+    def __init__(self, model, uid, resource: 'SpurResource', jitter) -> None:
         self._res = resource
         super().__init__(model, uid, jitter)
 
@@ -177,6 +199,80 @@ class StoreComponent(BaseComponent):
     def __init__(self, model, uid, store: Store) -> None:
         self._store = store
         super().__init__(model, uid)
+
+
+class SpurRequest(Request):
+    """A custom class that inherits SimPy's Request class.
+
+    This class also stores the agent making the request as a property.
+
+    Attributes
+    ----------
+    agent : Any child of `Agent` class
+        The agent making the request
+    """
+
+    def __init__(self, resource: 'SpurResource', agent: 'Agent'):
+        self._agent = agent
+        super().__init__(resource)
+
+    @property
+    def agent(self):
+        return self._agent
+
+
+class SpurResource(Resource):
+    """A custom class that inherits SimPy's Resource class.
+
+    This overrides the _do_put() method in the parent class to include a check
+    with the linked component regarding whether an agent could use the resource,
+    in addition to deciding based on the resource capacity.
+
+    Attributes
+    ----------
+    component : Any child of `ResourceComponent` class
+        The associated component for the resource
+    """
+
+    users: List[SpurRequest]
+
+    def __init__(self, env: Environment, component: ResourceComponent, capacity: int = 1):
+        self._component = component
+        super().__init__(env, capacity)
+
+    if TYPE_CHECKING:
+
+        def request(self, agent: 'Agent' = None) -> SpurRequest:
+            """Request a usage slot for the given *agent*."""
+            return SpurRequest(self, agent)
+
+        def release(self, request: SpurRequest) -> Release:
+            """Release a usage slot."""
+            return Release(self, request)
+
+    else:
+        request = BoundClass(SpurRequest)
+        release = BoundClass(Release)
+
+    def _do_put(self, event: SpurRequest) -> None:
+        if (
+            len(self.users) < self.capacity
+            and self._component.check_usage_eligibility(event.agent)
+        ):
+            self.users.append(event)
+            event.usage_since = self._env.now
+            event.succeed()
+
+    def process_queue(self) -> None:
+        """Explicitly trigger the processing of the wait queue of trains wanting to use the resource,
+        instead of only triggering upon a new request or a train releasing the resource.
+
+        Returns
+        -------
+        None
+        """
+
+        self._trigger_put(None)
 
 
 class Agent(BaseItem, ABC):
