@@ -96,11 +96,10 @@ class Model(Environment):
             return True
 
     def component_dictionary(self):
-        components = [d["c"] for u, v, d in self.G.edges(data=True)]
-        d = dict()
-        for c in components:
-            d[c.uid] = c
-        return d
+        d_out = dict()
+        for u, v, d in self.G.edges(data=True):
+            d_out[d["c"].uid] = {"c": d["c"], "u": u, "v": v}
+        return d_out
 
     def add_component(self, component_type, u, v, key, *args, **kwargs):
         """Add a component to the model network
@@ -250,9 +249,9 @@ class Model(Environment):
                                              f"components. The number must match.")
                 for c, c_args in zip(route_info["components"], r["args"]):
                     if c_args is not None:
-                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"], **c_args)
+                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"]["c"], **c_args)
                     else:
-                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"])
+                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"]["c"])
                 new_tour.append(new_route)
             self._tours[t['name']] = new_tour
 
