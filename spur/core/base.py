@@ -156,7 +156,7 @@ class BaseComponent(BaseItem, ABC):
                     clean["args"][clean_k] = d[k]
         return clean
 
-    def check_usage_eligibility(self, agent: 'Agent'):
+    def can_accept_agent(self, agent: 'Agent') -> bool:
         """Check whether `agent` is eligible to use this component based on component state.
 
         Always returns True by default, meaning the decision to accept the agent's
@@ -257,7 +257,7 @@ class SpurResource(Resource):
     def _do_put(self, event: SpurRequest) -> None:
         if (
             len(self.users) < self.capacity
-            and self._component.check_usage_eligibility(event.agent)
+            and self._component.can_accept_agent(event.agent)
         ):
             self.users.append(event)
             self._component.accept_agent(event.agent)
