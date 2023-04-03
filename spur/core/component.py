@@ -149,8 +149,8 @@ class MultiBlockTrack(ResourceComponent):
         self._track_directions: list[Optional[int]] = [None] * num_tracks
         self._track_assignments = dict()
         self._train_waiting_events = dict()
-        self._resource = SpurResource(model, self, capacity=num_tracks*num_blocks)
-        super().__init__(model, uid, self._resource, jitter)
+        resource = SpurResource(model, self, capacity=num_tracks*num_blocks)
+        super().__init__(model, uid, resource, jitter)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -298,7 +298,7 @@ class MultiBlockTrack(ResourceComponent):
         # Take care of the train behind
         if b == start:
             # If leaving starting block, check if trains waiting outside the component could now enter
-            self._resource.process_queue()
+            self._res.process_queue()
         elif self._blocks[t][b - direction] is not None:
             # If there is a train in previous block, allow it to enter current block
             prev_agent = self._blocks[t][b - direction]
@@ -338,7 +338,7 @@ class MultiBlockTrack(ResourceComponent):
 
         # Traverse through each block along the assigned track
         for b in range(start, end, direction):
-            yield self._model.timeout(self._block_traversal_time)
+            yield self._model.timeout(self._block_traversal_time + self._jitter.jitter())
 
             if b != last:
                 # If next block is occupied, sleep until woken up
@@ -352,7 +352,7 @@ class MultiBlockTrack(ResourceComponent):
                 # Take care of the train behind
                 if b == start:
                     # If leaving starting block, check if trains waiting outside the component could now enter
-                    self._resource.process_queue()
+                    self._res.process_queue()
                 elif self._blocks[assigned_track][b - direction] is not None:
                     # If there is a train in previous block, allow it to enter current block
                     prev_train = self._blocks[assigned_track][b - direction]
