@@ -307,7 +307,7 @@ class MultiBlockTrack(ResourceComponent):
 
         return super().release_agent(agent)
 
-    def check_usage_eligibility(self, agent) -> bool:
+    def can_accept_agent(self, agent) -> bool:
         direction = self._get_travel_direction(agent)
         # print(f"Checking eligibility for {agent.uid}: {self._blocks}, {self._track_directions}")
 
