@@ -90,7 +90,9 @@ class Train(Agent):
             yield req
 
             # Transfer to the new segment
-            self.transfer_to(segment)
+            if self._current_segment:
+                self._current_segment.component.release_agent(self)
+            self._current_segment = segment
             # Release the previous segment's resource once train is in the new segment
             if prev_req is not None:
                 segment.prev.component.resource.release(prev_req)

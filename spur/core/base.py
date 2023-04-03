@@ -260,6 +260,7 @@ class SpurResource(Resource):
             and self._component.check_usage_eligibility(event.agent)
         ):
             self.users.append(event)
+            self._component.accept_agent(event.agent)
             event.usage_since = self._env.now
             event.succeed()
 
@@ -321,6 +322,10 @@ class Agent(BaseItem, ABC):
     @tour.setter
     def tour(self, tour):
         self._tour = tour
+
+    @property
+    def current_segment(self):
+        return self._current_segment
 
     def transfer_to(self, segment):
         # First we tell the previous component we're done
