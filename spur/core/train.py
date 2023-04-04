@@ -85,12 +85,14 @@ class Train(Agent):
                 self.simLog.debug(
                     "Not attached. Will try to access to first component."
                 )
-            # Ask to access the current component in the list
-            req = segment.component.resource.request()
+            # Ask to access the upcoming segment component and accept train once successful
+            req = segment.component.resource.request(self)
             yield req
 
-            # Transfer to the new segment
-            self.transfer_to(segment)
+            # Release train from old segment component and update current segment
+            if self._current_segment:
+                self._current_segment.component.release_agent(self)
+            self._current_segment = segment
             # Release the previous segment's resource once train is in the new segment
             if prev_req is not None:
                 segment.prev.component.resource.release(prev_req)

@@ -3,9 +3,7 @@
 import logging
 import math
 
-from simpy import Resource
-
-from spur.core.base import ResourceComponent
+from spur.core.base import ResourceComponent, SpurResource
 from spur.core.jitter import NoJitter
 
 from spur.core.exception import NotPositiveError
@@ -36,7 +34,7 @@ class TimedTrack(ResourceComponent):
     ) -> None:
 
         self.traversal_time = traversal_time
-        resource = Resource(model, capacity=capacity)
+        resource = SpurResource(model, self, capacity=capacity)
         super().__init__(model, uid, resource, jitter)
 
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
@@ -90,7 +88,7 @@ class PhysicsTrack(ResourceComponent):
     __name__ = "PhysicsTrack"
 
     def __init__(self, model, uid, length, track_speed, jitter=NoJitter()) -> None:
-        resource = Resource(model, capacity=1)
+        resource = SpurResource(model, self, capacity=1)
         self.track_speed = track_speed
         self.length = length
         super().__init__(model, uid, resource, jitter)
@@ -150,7 +148,7 @@ class SimpleYard(ResourceComponent):
     __name__ = "SimpleYard"
 
     def __init__(self, model, uid, capacity, jitter=NoJitter()) -> None:
-        resource = Resource(model, capacity=capacity)
+        resource = SpurResource(model, self, capacity=capacity)
         super().__init__(model, uid, resource, jitter)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
@@ -195,7 +193,7 @@ class SimpleStation(ResourceComponent):
     def __init__(
         self, model, uid, mean_boarding, mean_alighting, jitter=NoJitter()
     ) -> None:
-        resource = Resource(model, capacity=1)
+        resource = SpurResource(model, self, capacity=1)
         super().__init__(model, uid, resource, jitter)
         self._mean_boarding = mean_boarding
         self._mean_alighting = mean_alighting
@@ -246,7 +244,7 @@ class TimedStation(ResourceComponent):
         traversal_time,
         jitter=NoJitter(),
     ) -> None:
-        resource = Resource(model, capacity=1)
+        resource = SpurResource(model, self, capacity=1)
         super().__init__(model, uid, resource, jitter)
         self._mean_boarding = mean_boarding
         self._mean_alighting = mean_alighting
@@ -294,7 +292,7 @@ class SimpleCrossover(ResourceComponent):
 
     def __init__(self, model, uid, traversal_time, jitter=NoJitter()) -> None:
         self.traversal_time = traversal_time
-        resource = Resource(model, capacity=1)
+        resource = SpurResource(model, self, capacity=1)
         super().__init__(model, uid, resource, jitter)
 
     @property
