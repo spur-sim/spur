@@ -4,6 +4,8 @@ import logging
 import math
 from typing import Optional
 
+from scipy.stats import burr
+
 from spur.core.base import ResourceComponent, SpurResource, Agent
 from spur.core.jitter import NoJitter
 
@@ -444,6 +446,106 @@ class SimpleStation(ResourceComponent):
             + self._jitter.jitter()
         )
         yield self.model.timeout(dwell)
+
+
+class MultiTrackStation(ResourceComponent):
+    """
+    With Burr dwell time distribution
+    """
+
+    __name__ = "MultiTrackStation"
+
+    def __init__(self, model, uid, num_stopping_tracks: int, num_bypass_tracks: int, bypass_time: int,
+                 dwell_c, dwell_d, dwell_loc, dwell_scale,
+                 jitter=NoJitter()) -> None:
+        self._bypass_time = bypass_time
+        self._dwell_params = (dwell_c, dwell_d, dwell_loc, dwell_scale)
+
+        self._stopping_tracks: list[Optional[Agent]] = [None] * num_stopping_tracks
+        self._bypass_tracks: list[Optional[Agent]] = [None] * num_bypass_tracks
+        self._track_assignments: dict[str, str] = dict()
+
+        resource = SpurResource(model, self, capacity=num_stopping_tracks+num_bypass_tracks)
+        super().__init__(model, uid, resource, jitter)
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+
+    def _train_is_stopping(self, train: Agent, current: bool) -> bool:
+        """
+
+        Parameters
+        ----------
+        train : Any child of `Agent` class
+            The train to check
+        current : bool
+            True if method is called when this component is the current segment of the train;
+            False if method is called before train has been transferred to this component
+
+        Returns
+        -------
+        bool
+            True if the train is stopping for boarding and alighting at this station component; False if bypassing
+        """
+        if current:
+            return train.current_segment.departure is not None
+        else:
+            return train.current_segment.next.departure is not None
+
+    def accept_agent(self, agent: Agent):
+        # If train is bypassing, first check if there is an available bypass track
+        if not self._train_is_stopping(agent, current=False):
+            for t in range(len(self._bypass_tracks)):
+                if self._bypass_tracks[t] is None:
+                    self._bypass_tracks[t] = agent
+                    self._track_assignments[agent.uid] = f"B-{t}"
+                    break
+
+        # If train does not have an assigned track by this point, either it is stopping,
+        # or it is bypassing and there is no available bypass track -> try to assign to a stopping track
+        if agent.uid not in self._track_assignments:
+            for t in range(len(self._stopping_tracks)):
+                if self._stopping_tracks[t] is None:
+                    self._stopping_tracks[t] = agent
+                    self._track_assignments[agent.uid] = f"S-{t}"
+                    break
+
+        # Train must have a track assigned by this point
+        if agent.uid not in self._track_assignments:
+            raise Exception(f"Train {agent.uid} cannot enter the component despite being allowed to")
+
+        super().accept_agent(agent)
+
+    def release_agent(self, agent: Agent):
+        track_type, track_index = self._track_assignments[agent.uid].split("-")
+        track_index = int(track_index)
+
+        if track_type == "S":
+            self._stopping_tracks[track_index] = None
+        else:
+            self._bypass_tracks[track_index] = None
+
+        del self._track_assignments[agent.uid]
+
+        return super().release_agent(agent)
+
+    def can_accept_agent(self, agent: Agent) -> bool:
+        if self._train_is_stopping(agent, current=False):
+            # If train is stopping and there is at least one free stopping track, accept the train
+            if self._stopping_tracks.count(None) > 0:
+                return True
+        else:
+            # If train is bypassing and there is at least one free track of either type, accept the train
+            if self._bypass_tracks.count(None) + self._stopping_tracks.count(None) > 0:
+                return True
+
+        return False
+
+    def do(self, train):
+        if self._train_is_stopping(train, current=True):
+            dwell = round(burr.rvs(*self._dwell_params) + self._jitter.jitter())
+            yield self.model.timeout(dwell)
+        else:
+            yield self.model.timeout(self._bypass_time + self._jitter.jitter())
 
 
 class TimedStation(ResourceComponent):
