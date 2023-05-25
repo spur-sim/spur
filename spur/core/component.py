@@ -33,12 +33,12 @@ class TimedTrack(ResourceComponent):
     __name__ = "TimedTrack"
 
     def __init__(
-        self, model, uid, traversal_time, capacity=1, jitter=NoJitter()
+        self, model, uid, traversal_time, capacity=1, jitter=NoJitter(), collection=None
     ) -> None:
 
         self.traversal_time = traversal_time
         resource = SpurResource(model, self, capacity=capacity)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
 
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -90,11 +90,11 @@ class PhysicsTrack(ResourceComponent):
 
     __name__ = "PhysicsTrack"
 
-    def __init__(self, model, uid, length, track_speed, jitter=NoJitter()) -> None:
+    def __init__(self, model, uid, length, track_speed, jitter=NoJitter(), collection=None) -> None:
         resource = SpurResource(model, self, capacity=1)
         self.track_speed = track_speed
         self.length = length
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -135,7 +135,8 @@ class MultiBlockTrack(ResourceComponent):
 
     __name__ = "MultiBlockTrack"
 
-    def __init__(self, model, uid, num_tracks: int, num_blocks: int, traversal_time, jitter=NoJitter()) -> None:
+    def __init__(self, model, uid, num_tracks: int, num_blocks: int, traversal_time, jitter=NoJitter(),
+                 collection=None) -> None:
         self._num_tracks = num_tracks
         self._num_blocks = num_blocks
         self._block_traversal_time = int(math.ceil(traversal_time / num_blocks))  # Round up to integer
@@ -152,7 +153,7 @@ class MultiBlockTrack(ResourceComponent):
         self._track_assignments = dict()
         self._train_waiting_events = dict()
         resource = SpurResource(model, self, capacity=num_tracks*num_blocks)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -310,6 +311,10 @@ class MultiBlockTrack(ResourceComponent):
         return super().release_agent(agent)
 
     def can_accept_agent(self, agent) -> bool:
+        # If the component's collection cannot accept agent, reject the agent outright
+        if not super().can_accept_agent(agent):
+            return False
+
         direction = self._get_travel_direction(agent)
         # print(f"Checking eligibility for {agent.uid}: {self._blocks}, {self._track_directions}")
 
@@ -340,7 +345,8 @@ class MultiBlockTrack(ResourceComponent):
 
         # Traverse through each block along the assigned track
         for b in range(start, end, direction):
-            yield self._model.timeout(self._block_traversal_time + self._jitter.jitter())
+            # Wait to traverse the individual block (with the overall jitter divided by the number of blocks)
+            yield self._model.timeout(round(self._block_traversal_time + self._jitter.jitter() / self._num_blocks))
 
             if b != last:
                 # If next block is occupied, sleep until woken up
@@ -384,9 +390,9 @@ class SimpleYard(ResourceComponent):
 
     __name__ = "SimpleYard"
 
-    def __init__(self, model, uid, capacity, jitter=NoJitter()) -> None:
+    def __init__(self, model, uid, capacity, jitter=NoJitter(), collection=None) -> None:
         resource = SpurResource(model, self, capacity=capacity)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -428,10 +434,10 @@ class SimpleStation(ResourceComponent):
     __name__ = "SimpleStation"
 
     def __init__(
-        self, model, uid, mean_boarding, mean_alighting, jitter=NoJitter()
+        self, model, uid, mean_boarding, mean_alighting, jitter=NoJitter(), collection=None
     ) -> None:
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
         self._mean_boarding = mean_boarding
         self._mean_alighting = mean_alighting
         # Override the simulation logging information
@@ -457,7 +463,7 @@ class MultiTrackStation(ResourceComponent):
 
     def __init__(self, model, uid, num_stopping_tracks: int, num_bypass_tracks: int, bypass_time: int,
                  dwell_c, dwell_d, dwell_loc, dwell_scale,
-                 jitter=NoJitter()) -> None:
+                 jitter=NoJitter(), collection=None) -> None:
         self._bypass_time = bypass_time
         self._dwell_params = (dwell_c, dwell_d, dwell_loc, dwell_scale)
 
@@ -466,7 +472,7 @@ class MultiTrackStation(ResourceComponent):
         self._track_assignments: dict[str, str] = dict()
 
         resource = SpurResource(model, self, capacity=num_stopping_tracks+num_bypass_tracks)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
         self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
 
@@ -489,7 +495,11 @@ class MultiTrackStation(ResourceComponent):
         if current:
             return train.current_segment.departure is not None
         else:
-            return train.current_segment.next.departure is not None
+            if train.current_segment is not None:
+                return train.current_segment.next.departure is not None
+            else:
+                # If this is the first component to be visited by the train, can use any track
+                return False
 
     def accept_agent(self, agent: Agent):
         # If train is bypassing, first check if there is an available bypass track
@@ -529,6 +539,10 @@ class MultiTrackStation(ResourceComponent):
         return super().release_agent(agent)
 
     def can_accept_agent(self, agent: Agent) -> bool:
+        # If the component's collection cannot accept agent, reject the agent outright
+        if not super().can_accept_agent(agent):
+            return False
+
         if self._train_is_stopping(agent, current=False):
             # If train is stopping and there is at least one free stopping track, accept the train
             if self._stopping_tracks.count(None) > 0:
@@ -580,9 +594,10 @@ class TimedStation(ResourceComponent):
         mean_alighting,
         traversal_time,
         jitter=NoJitter(),
+        collection=None
     ) -> None:
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
         self._mean_boarding = mean_boarding
         self._mean_alighting = mean_alighting
         self._traversal_time = traversal_time
@@ -627,10 +642,10 @@ class SimpleCrossover(ResourceComponent):
 
     __name__ = "SimpleCrossover"
 
-    def __init__(self, model, uid, traversal_time, jitter=NoJitter()) -> None:
+    def __init__(self, model, uid, traversal_time, jitter=NoJitter(), collection=None) -> None:
         self.traversal_time = traversal_time
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter)
+        super().__init__(model, uid, resource, jitter, collection)
 
     @property
     def traversal_time(self):

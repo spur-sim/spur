@@ -44,6 +44,7 @@ class Model(Environment):
         self.G = MultiGraph()
         self._trains = {}
         self._tours = {}  # Used as a container to keep track of possible tours
+        self._collections = {}  # Used as a container to keep track of all collections
 
         # Set up logging environment for the simulation output
         self.simLog = logging.getLogger("sim")
@@ -88,6 +89,10 @@ class Model(Environment):
     @property
     def components(self):
         return [d["c"] for u, v, d in self.G.edges(data=True)]
+
+    @property
+    def collections(self):
+        return self._collections
 
     def _uid_unique(self, uid):
         if uid in self._trains.keys() or uid in self._tours.keys():
@@ -202,8 +207,24 @@ class Model(Environment):
             else:
                 jitter = NoJitter()
 
+            # Check if component belongs to a collection
+            if "collection" in c.keys():
+                collection_id = f"{c['collection']['type']}-{c['collection']['key']}"
+                if collection_id in self.collections:
+                    # If collection instance has already been created, look it up
+                    collection = self.collections[collection_id]
+                else:
+                    # Otherwise, create a new collection and save it
+                    Collection = getattr(
+                        importlib.import_module("spur.core.collection"), c["collection"]["type"]
+                    )
+                    collection = Collection(model=self, uid=collection_id)
+                    self.collections[collection_id] = collection
+            else:
+                collection = None
+
             self.add_component(
-                component, c["u"], c["v"], c["key"], jitter=jitter, **c["args"]
+                component, c["u"], c["v"], c["key"], jitter=jitter, collection=collection, **c["args"]
             )
 
     def add_components_from_json_file(self, filepath):
