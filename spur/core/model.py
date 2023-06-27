@@ -44,6 +44,7 @@ class Model(Environment):
         self.G = MultiGraph()
         self._trains = {}
         self._tours = {}  # Used as a container to keep track of possible tours
+        self._collections = {}  # Used as a container to keep track of all collections
 
         # Set up logging environment for the simulation output
         self.simLog = logging.getLogger("sim")
@@ -89,6 +90,10 @@ class Model(Environment):
     def components(self):
         return [d["c"] for u, v, d in self.G.edges(data=True)]
 
+    @property
+    def collections(self):
+        return self._collections
+
     def _uid_unique(self, uid):
         if uid in self._trains.keys() or uid in self._tours.keys():
             return False
@@ -96,11 +101,10 @@ class Model(Environment):
             return True
 
     def component_dictionary(self):
-        components = [d["c"] for u, v, d in self.G.edges(data=True)]
-        d = dict()
-        for c in components:
-            d[c.uid] = c
-        return d
+        d_out = dict()
+        for u, v, d in self.G.edges(data=True):
+            d_out[d["c"].uid] = {"c": d["c"], "u": u, "v": v}
+        return d_out
 
     def add_component(self, component_type, u, v, key, *args, **kwargs):
         """Add a component to the model network
@@ -203,8 +207,24 @@ class Model(Environment):
             else:
                 jitter = NoJitter()
 
+            # Check if component belongs to a collection
+            if "collection" in c.keys():
+                collection_id = f"{c['collection']['type']}-{c['collection']['key']}"
+                if collection_id in self.collections:
+                    # If collection instance has already been created, look it up
+                    collection = self.collections[collection_id]
+                else:
+                    # Otherwise, create a new collection and save it
+                    Collection = getattr(
+                        importlib.import_module("spur.core.collection"), c["collection"]["type"]
+                    )
+                    collection = Collection(model=self, uid=collection_id)
+                    self.collections[collection_id] = collection
+            else:
+                collection = None
+
             self.add_component(
-                component, c["u"], c["v"], c["key"], jitter=jitter, **c["args"]
+                component, c["u"], c["v"], c["key"], jitter=jitter, collection=collection, **c["args"]
             )
 
     def add_components_from_json_file(self, filepath):
@@ -250,9 +270,9 @@ class Model(Environment):
                                              f"components. The number must match.")
                 for c, c_args in zip(route_info["components"], r["args"]):
                     if c_args is not None:
-                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"], **c_args)
+                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"]["c"], **c_args)
                     else:
-                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"])
+                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"]["c"])
                 new_tour.append(new_route)
             self._tours[t['name']] = new_tour
 

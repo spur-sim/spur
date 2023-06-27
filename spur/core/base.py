@@ -5,7 +5,7 @@ Base classes of Spur's component types.
 """
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, List, Optional
 
 from simpy.core import BoundClass, Environment
 from simpy.resources.resource import Resource, Request, Release
@@ -78,6 +78,11 @@ class BaseComponent(BaseItem, ABC):
     (e.g. a train) moves through. Every component must have a `do()` method
     implemented that the agent interacts with.
 
+    Attributes
+    ----------
+    collection : Optional['BaseCollection']
+        The collection that the component belongs to. Could be None.
+
     Raises
     ------
     NotImplementedError
@@ -86,13 +91,26 @@ class BaseComponent(BaseItem, ABC):
 
     __name__ = "BaseComponent"
 
-    def __init__(self, model, uid, jitter) -> None:
+    def __init__(self, model, uid, jitter, collection) -> None:
         self._agents = {}
         self._jitter = jitter
+        self._collection = collection
         super().__init__(model, uid)
 
     def __repr__(self):
         return f"Component {self.uid}"
+
+    @property
+    def collection(self) -> Optional['BaseCollection']:
+        return self._collection
+
+    @property
+    def jitter(self):
+        return self._jitter
+
+    @jitter.setter
+    def jitter(self, j):
+        self._jitter = j
 
     def accept_agent(self, agent):
         """Accept a request for an agent to use the component
@@ -102,8 +120,12 @@ class BaseComponent(BaseItem, ABC):
         agent : Any child of `BaseAgent` class
             The agent that is requesting use of the component.
         """
+        # Acceptance into component means acceptance into collection
+        if self.collection is not None:
+            self.collection.accept_agent(agent)
 
         self._agents[agent.uid] = agent
+
         self.simLog.debug(f"Accepted agent {agent.uid}")
         self.simLog.debug(f"Current Agents (after accept): {self._agents}")
 
@@ -120,6 +142,9 @@ class BaseComponent(BaseItem, ABC):
         `BaseAgent` child
             The agent that has been released from this component.
         """
+        # Release from component means release from collection
+        if self.collection is not None:
+            self.collection.release_agent(agent)
 
         self.simLog.debug(f"Releasing agent {agent.uid}")
         self.simLog.debug(f"Current Agents (before release): {self._agents}")
@@ -157,11 +182,15 @@ class BaseComponent(BaseItem, ABC):
         return clean
 
     def can_accept_agent(self, agent: 'Agent') -> bool:
-        """Check whether `agent` is eligible to use this component based on component state.
+        """Check whether `agent` is eligible to use this component based on component and
+        collection states.
 
-        Always returns True by default, meaning the decision to accept the agent's
-        request is purely based on resource capacity. Can be overriden in child classes to
-        include custom logic.
+        If the component does not belong to a collection, returns True by default, meaning
+        the decision to accept the agent's request is purely based on resource capacity.
+        Can be overriden in child classes to include custom logic.
+
+        If the component does belong to a collection, determine acceptance based on collection
+        state by default. Can be overriden in child classes to include custom logic.
 
         Parameters
         ----------
@@ -173,8 +202,11 @@ class BaseComponent(BaseItem, ABC):
         bool
             Whether `agent` is eligible to use the component.
         """
+        # If component does not belong to a collection, accept the agent by default
+        if self.collection is None:
+            return True
 
-        return True
+        return self.collection.can_accept_agent(agent)
 
     @abstractmethod
     def do(self, *args, **kwargs):
@@ -184,9 +216,9 @@ class BaseComponent(BaseItem, ABC):
 class ResourceComponent(BaseComponent):
     __name__ = "Base Resource Component"
 
-    def __init__(self, model, uid, resource: 'SpurResource', jitter) -> None:
+    def __init__(self, model, uid, resource: 'SpurResource', jitter, collection) -> None:
         self._res = resource
-        super().__init__(model, uid, jitter)
+        super().__init__(model, uid, jitter, collection)
 
     @property
     def resource(self):
@@ -196,9 +228,9 @@ class ResourceComponent(BaseComponent):
 class StoreComponent(BaseComponent):
     __name__ = "Store Component"
 
-    def __init__(self, model, uid, store: Store) -> None:
+    def __init__(self, model, uid, store: Store, jitter, collection) -> None:
         self._store = store
-        super().__init__(model, uid)
+        super().__init__(model, uid, jitter, collection)
 
 
 class SpurRequest(Request):
@@ -341,6 +373,53 @@ class Agent(BaseItem, ABC):
 
     @abstractmethod
     def run(self):
+        pass
+
+
+class BaseCollection(BaseItem, ABC):
+    """The base collection class that all collections inherit from."""
+
+    __name__ = "BaseCollection"
+
+    def __init__(self, model, uid) -> None:
+        super().__init__(model, uid)
+
+    def __repr__(self) -> str:
+        return f"Collection {self.uid}"
+
+    def can_accept_agent(self, agent: Agent) -> bool:
+        """Check if the agent can enter the collection. Returns True by default.
+
+        Parameters
+        ----------
+        agent : Agent
+            The agent wanting to enter the collection.
+
+        Returns
+        -------
+        bool
+            Whether the agent is allowed to enter the collection.
+        """
+        return True
+
+    def accept_agent(self, agent: Agent) -> None:
+        """Accept the agent into the collection. Does nothing by default.
+
+        Parameters
+        ----------
+        agent : Agent
+            The agent to be accepted into the collection.
+        """
+        pass
+
+    def release_agent(self, agent: Agent) -> None:
+        """Release the agent from the collection. Does nothing by default.
+
+        Parameters
+        ----------
+        agent : Agent
+            The agent to be released from the collection.
+        """
         pass
 
 

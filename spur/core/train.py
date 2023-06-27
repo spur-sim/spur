@@ -88,17 +88,22 @@ class Train(Agent):
             # Ask to access the upcoming segment component and accept train once successful
             req = segment.component.resource.request(self)
             yield req
+            self.agentLog.info(
+                f"IN,{segment.component.uid},{segment.component.__name__}"
+            )
 
             # Release train from old segment component and update current segment
             if self._current_segment:
                 self._current_segment.component.release_agent(self)
+                # Finished traversing old component
+                self.agentLog.info(
+                    f"OUT,{self._current_segment.component.uid},{self._current_segment.component.__name__}"
+                )
+                self.simLog.debug(f"Finished traversing {self._current_segment.component.uid}")
             self._current_segment = segment
             # Release the previous segment's resource once train is in the new segment
             if prev_req is not None:
                 segment.prev.component.resource.release(prev_req)
-            self.agentLog.info(
-                f"IN,{segment.component.uid},{segment.component.__name__}"
-            )
 
             # Now we get the component to shepherd us through
             try:
@@ -121,16 +126,15 @@ class Train(Agent):
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")
 
-            # Finished traversing
-            self.agentLog.info(
-                f"OUT,{segment.component.uid},{segment.component.__name__}"
-            )
-            self.simLog.debug(f"Finished traversing {segment.component.uid}")
-
             # Store the Request to be released in the next loop iteration
             prev_req = req
 
-        # End of the tour - Release the Request from the last segment
+        # End of the tour - Release the agent from the last component and Release the Request from the last segment
+        self._current_segment.component.release_agent(self)
+        self.agentLog.info(
+            f"OUT,{self._current_segment.component.uid},{self._current_segment.component.__name__}"
+        )
+        self.simLog.debug(f"Finished traversing {self._current_segment.component.uid}")
         self._current_segment.component.resource.release(prev_req)
 
         self.simLog.debug("Finished my tour, going idle...")
