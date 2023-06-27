@@ -129,8 +129,17 @@ class PhysicsTrack(ResourceComponent):
 
 
 class MultiBlockTrack(ResourceComponent):
-    """
-    TODO: write docstring content
+    """A track component that can contain multiple signal blocks and tracks in parallel.
+
+    For each individual track inside the component, the train moves through the successive
+    blocks using a Cellular Automaton setup. The traversal time through each block is the
+    total component traversal time evenly divided by the number of blocks. After spending
+    this duration of time, the train will move to the next block along its direction of
+    travel whenever the next block is unoccupied.
+
+    This component assigns each train to a track by putting trains travelling in the same
+    direction into the same track as close together as possible, in order to maximize the
+    track utilization.
     """
 
     __name__ = "MultiBlockTrack"
@@ -149,9 +158,10 @@ class MultiBlockTrack(ResourceComponent):
                 track.append(None)
             self._blocks.append(track)
 
+        # Record the travel direction of each track as 1 or -1, or None if track empty
         self._track_directions: list[Optional[int]] = [None] * num_tracks
         self._track_assignments = dict()
-        self._train_waiting_events = dict()
+        self._train_waiting_events = dict()  # Store SimPy events used to handle wait-queueing of trains between blocks
         resource = SpurResource(model, self, capacity=num_tracks*num_blocks)
         super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information

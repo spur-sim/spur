@@ -104,6 +104,14 @@ class BaseComponent(BaseItem, ABC):
     def collection(self) -> Optional['BaseCollection']:
         return self._collection
 
+    @property
+    def jitter(self):
+        return self._jitter
+
+    @jitter.setter
+    def jitter(self, j):
+        self._jitter = j
+
     def accept_agent(self, agent):
         """Accept a request for an agent to use the component
 
