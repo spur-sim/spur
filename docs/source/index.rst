@@ -34,3 +34,4 @@ If you are interested in contributing to the project, please consult our :ref:`c
    guide/index
    contributing
    reference/index
+   papers/index
