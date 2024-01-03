@@ -1,0 +1,30 @@
+TRB Annual Meeting 2024
+=======================
+
+A poster presentation of a paper documenting the initial development of the Spur project is taking place at the 103rd Transportation Research Board (TRB) `Annual Meeting <https://www.trb.org/AnnualMeeting/AnnualMeeting.aspx>`_ in Washington D.C., USA. The title of the paper and presentation is: *Developing a Modular, Data-Driven Mesoscopic Simulator for Stochastic Railway Networks*.
+
+This poster is presented as part of the following session:
+
+- Event Number: 2114
+- Event Title: *Exploring Operations Optimization: Train Scheduling and Staffing Forecasting*
+- Event `Location <https://www.trb.org/AnnualMeeting/Transportation.aspx>`_: Walter E. Washington Convention Center, Hall A
+- Event Time: Monday, January 8, 2024, 10:15 AM - 12:00 PM
+- Poster Board Location Number: B669
+
+Poster
+######
+
+A digital file of the full poster is available for download as a PDF :download:`here <spur_trb_poster_2024.pdf>`.
+
+References
+##########
+
+References for the works on other mesoscopic railway simulation models featured in the poster are below:
+
+1. S. Saidi, N. H. M. Wilson, H. N. Koutsopoulos, and J. Zhao, "Mesoscopic Modeling of Train Operations: Application to the MBTA Red Line," in *2019 IEEE Intelligent Transportation Systems Conference (ITSC)*, Oct. 2019, pp. 98–103. doi: `10.1109/ITSC.2019.8917313 <https://doi.org/10.1109/ITSC.2019.8917313>`_.
+2. M. Marinov and J. Viegas, "A mesoscopic simulation modelling methodology for analyzing and evaluating freight train operations in a rail network," *Simulation Modelling Practice and Theory*, vol. 19, no. 1, pp. 516–539, Jan. 2011, doi: `10.1016/j.simpat.2010.08.009 <https://doi.org/10.1016/j.simpat.2010.08.009>`_.
+3. M. Zhong, Y. Yue, and D. Li, "Analyzing and Evaluating Infrastructure Capacity of Railway Passenger Station by Mesoscopic Simulation Method," in *2018 International Conference on Intelligent Rail Transportation (ICIRT)*, Singapore, Dec. 2018, pp. 1–5. doi: `10.1109/ICIRT.2018.8641593 <https://doi.org/10.1109/ICIRT.2018.8641593>`_.
+4. E. Quaglietta, L. D’Acierno, V. Punzo, R. Nardone, and N. Mazzocca, "A simulation framework for supporting design and real-time decisional phases in railway systems," in *2011 14th International IEEE Conference on Intelligent Transportation Systems (ITSC)*, Washington, DC, USA, Oct. 2011, pp. 846–851. doi: `10.1109/ITSC.2011.6082913 <https://doi.org/10.1109/ITSC.2011.6082913>`_.
+5. R. Diviš and A. Kavička, "Design and development of a mesoscopic simulator specialized in investigating capacities of railway nodes," presented at the *27th European Modeling and Simulation Symposium*, Sep. 2015, pp. 52–57. `Link to paper <https://www.msc-les.org/proceedings/emss/2015/EMSS2015_52.pdf>`_.
+6. S. de Fabris, G. Longo, G. Medeossi, and R. Pesenti, "Automatic generation of railway timetables based on a mesoscopic infrastructure model," *Journal of Rail Transport Planning & Management*, vol. 4, no. 1–2, pp. 2–13, Aug. 2014, doi: `10.1016/j.jrtpm.2014.04.001 <https://doi.org/10.1016/j.jrtpm.2014.04.001>`_.
+7. A. Kavička and P. Krýže, "Dynamic Automated Search of Shunting Routes within Mesoscopic Rail-Traffic Simulators," *Journal of Advanced Transportation*, vol. 2021, pp. 1–22, Apr. 2021, doi: `10.1155/2021/8840516 <https://doi.org/10.1155/2021/8840516>`_.
