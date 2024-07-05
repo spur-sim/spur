@@ -5,4 +5,3 @@ Module Contents
     :glob:
     
     core
-    gui
