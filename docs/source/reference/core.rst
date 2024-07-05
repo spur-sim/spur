@@ -8,7 +8,7 @@ Component
 
 Exception
 ##########
-.. automodule:: spur.core.exceptions
+.. automodule:: spur.core.exception
    :members:
 
 Jitter
