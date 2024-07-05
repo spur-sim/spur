@@ -1,7 +1,39 @@
+import pathlib
 import pytest
 
 from spur.core import Model
 from spur.core.component import TimedTrack
+
+# Test data
+DATA_DIRECTORY = pathlib.Path(__file__).resolve().parent / "data"
+COMPONENTS = DATA_DIRECTORY / "test_components.json"
+ROUTES = DATA_DIRECTORY / "test_routes.json"
+TOURS = DATA_DIRECTORY / "test_tours.json"
+TRAINS = DATA_DIRECTORY / "test_trains.json"
+
+
+@pytest.fixture
+def components_json_file():
+    """Return the json file of components"""
+    return COMPONENTS
+
+
+@pytest.fixture
+def routes_json_file():
+    """Return the json file of routes"""
+    return ROUTES
+
+
+@pytest.fixture
+def tours_json_file():
+    """Return the json file of tours"""
+    return TOURS
+
+
+@pytest.fixture
+def trains_json_file():
+    """Return the json file of trains"""
+    return TRAINS
 
 
 @pytest.fixture

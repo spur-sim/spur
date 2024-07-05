@@ -1,0 +1,22 @@
+[
+  {
+    "name": "T-0",
+    "max_speed": 50,
+    "tour": "Tour-1971226"
+  },
+  {
+    "name": "T-1",
+    "max_speed": 50,
+    "tour": "Tour-1971227"
+  },
+  {
+    "name": "T-2",
+    "max_speed": 50,
+    "tour": "Tour-1971228"
+  },
+  {
+    "name": "T-3",
+    "max_speed": 50,
+    "tour": "Tour-1971229"
+  }
+]

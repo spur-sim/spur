@@ -1,0 +1,194 @@
+[
+    {
+        "type": "SimpleYard",
+        "u": "yonge-west",
+        "v": "yonge-east",
+        "key": "Y",
+        "args": {
+            "capacity": 2000
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "yonge-east",
+        "v": "bayview-west",
+        "key": "N",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 161
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "yonge-east",
+        "v": "bayview-west",
+        "key": "S",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 183
+        }
+    },
+    {
+        "type": "SimpleStation",
+        "name": "Bayview North",
+        "u": "bayview-west",
+        "v": "bayview-east",
+        "key": "N",
+        "args": {
+            "mean_boarding": 20,
+            "mean_alighting": 20
+        },
+        "jitter": {
+            "type": "DisruptionJitter",
+            "args": {
+                "p": 0.1,
+                "delay": 450
+            }
+        }
+    },
+    {
+        "type": "SimpleStation",
+        "name": "Bayview South",
+        "u": "bayview-west",
+        "v": "bayview-east",
+        "key": "S",
+        "args": {
+            "mean_boarding": 20,
+            "mean_alighting": 20
+        },
+        "jitter": {
+            "type": "LognormalJitter",
+            "args": {
+                "mean": 2,
+                "std": 10
+            }
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "bayview-east",
+        "v": "bessarion-west",
+        "key": "N",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 113
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "bayview-east",
+        "v": "bessarion-west",
+        "key": "S",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 87
+        }
+    },
+    {
+        "type": "SimpleStation",
+        "name": "Bessarion North",
+        "u": "bessarion-west",
+        "v": "bessarion-east",
+        "key": "N",
+        "args": {
+            "mean_boarding": 20,
+            "mean_alighting": 20
+        },
+        "jitter": {
+            "type": "LognormalJitter",
+            "args": {
+                "mean": 2,
+                "std": 10
+            }
+        }
+    },
+    {
+        "type": "SimpleStation",
+        "name": "Bessarion South",
+        "u": "bessarion-west",
+        "v": "bessarion-east",
+        "key": "S",
+        "args": {
+            "mean_boarding": 20,
+            "mean_alighting": 20
+        },
+        "jitter": {
+            "type": "LognormalJitter",
+            "args": {
+                "mean": 2,
+                "std": 10
+            }
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "bessarion-east",
+        "v": "leslie-west",
+        "key": "N",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 105
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "bessarion-east",
+        "v": "leslie-west",
+        "key": "S",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 75
+        }
+    },
+    {
+        "type": "SimpleStation",
+        "name": "Leslie North",
+        "u": "leslie-west",
+        "v": "leslie-east",
+        "key": "N",
+        "args": {
+            "mean_boarding": 20,
+            "mean_alighting": 20
+        }
+    },
+    {
+        "type": "SimpleStation",
+        "name": "Leslie South",
+        "u": "leslie-west",
+        "v": "leslie-east",
+        "key": "S",
+        "args": {
+            "mean_boarding": 20,
+            "mean_alighting": 20
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "leslie-east",
+        "v": "donmills-west",
+        "key": "N",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 125
+        }
+    },
+    {
+        "type": "TimedTrack",
+        "u": "leslie-east",
+        "v": "donmills-west",
+        "key": "S",
+        "args": {
+            "capacity": 10,
+            "traversal_time": 159
+        }
+    },
+    {
+        "type": "SimpleYard",
+        "u": "donmills-west",
+        "v": "donmills-east",
+        "key": "Y",
+        "args": {
+            "capacity": 2000
+        }
+    }
+]
