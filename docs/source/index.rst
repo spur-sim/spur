@@ -22,7 +22,7 @@ The documentation here is designed both as a user manual and as a technical
 documentation source for developers wishing to adapt or extend the software or
 build their own plugins.
 
-If you are interested in contributing to the project, please consult our :ref:`contribution guide<Contributing to Spur>`.
+If you are interested in contributing to the project, please consult our :ref:`contribution guide<contributing>`.
 
 
 

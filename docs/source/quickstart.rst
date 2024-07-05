@@ -3,9 +3,9 @@ Getting Started
 
 Creating a simulation requires a few key sources of data:
 
-* A list of :ref:`components<Component>` that form the simulated network,
-* A train or set of trains which traverses the network (see :ref:`Train` documentation for details), and
-* A set of :ref:`tours<Tour>` and :ref:`routes<Route>` defined.
+* A list of :ref:`components<ref_component>` that form the simulated network,
+* A train or set of trains which traverses the network (see :ref:`Train<ref_train>` documentation for details), and
+* A set of :ref:`tours<ref_tour>` and :ref:`routes<ref_route>` defined.
 
 These data can be manually added in code, or defined in a JSON format.
 
