@@ -1,4 +1,0 @@
-GUI Contents
-============
-
-Coming soon...
