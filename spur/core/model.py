@@ -39,7 +39,7 @@ class Model(Environment):
         The logging component of the model
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, debug=False, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.G = MultiGraph()
         self._trains = {}
@@ -71,16 +71,17 @@ class Model(Environment):
         self.simLog.addHandler(fh)
 
         # Set up logfile output and formatting for debug
-        dfh = logging.FileHandler("log/debug.log", mode="w")
-        dfh.setLevel(logging.DEBUG)
-        dfh.addFilter(SimLogFilter(self))
-        simFileFormatter = logging.Formatter(
-            "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
-        )
-        dfh.setFormatter(simFileFormatter)
-        self.simLog.addHandler(dfh)
+        if debug == True:
+            dfh = logging.FileHandler("log/debug.log", mode="w")
+            dfh.setLevel(logging.DEBUG)
+            dfh.addFilter(SimLogFilter(self))
+            simFileFormatter = logging.Formatter(
+                "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
+            )
+            dfh.setFormatter(simFileFormatter)
+            self.simLog.addHandler(dfh)
 
-        logger.info("Model setup complete!")
+        self.simLog.info("Model setup complete!")
 
     @property
     def trains(self):
@@ -120,12 +121,12 @@ class Model(Environment):
         key : str
             The key of the component
         """
-        
+
         # Initialize a brand new component of the type passed
         c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
         # Add it to the graph
         self.G.add_edge(u, v, key=key, c=c)
-        logger.debug(f"Added {c.__name__} {c.uid}")
+        self.simLog.debug(f"Added {c.__name__} {c.uid}")
         return c
 
     def add_train(self, uid, max_speed, tour) -> Train:
@@ -216,7 +217,8 @@ class Model(Environment):
                 else:
                     # Otherwise, create a new collection and save it
                     Collection = getattr(
-                        importlib.import_module("spur.core.collection"), c["collection"]["type"]
+                        importlib.import_module("spur.core.collection"),
+                        c["collection"]["type"],
                     )
                     collection = Collection(model=self, uid=collection_id)
                     self.collections[collection_id] = collection
@@ -224,7 +226,13 @@ class Model(Environment):
                 collection = None
 
             self.add_component(
-                component, c["u"], c["v"], c["key"], jitter=jitter, collection=collection, **c["args"]
+                component,
+                c["u"],
+                c["v"],
+                c["key"],
+                jitter=jitter,
+                collection=collection,
+                **c["args"],
             )
 
     def add_components_from_json_file(self, filepath):
@@ -235,7 +243,7 @@ class Model(Environment):
         filepath : str
             The path to the JSON file containing components.
         """
-
+        self.simLog.info("Loading components from JSON file")
         with open(filepath, "r") as infile:
             components = json.load(infile)
         self.add_components_from_list(components)
@@ -262,19 +270,27 @@ class Model(Environment):
             new_tour = Tour(t["creation_time"], t["deletion_time"])
             for r in t["routes"]:
                 new_route = Route()
-                route_info = routes_raw[r["name"]]  # Look up the raw route info in dictionary
+                route_info = routes_raw[
+                    r["name"]
+                ]  # Look up the raw route info in dictionary
                 # Number of route args objects supplied in tour must be equal to number of components in route
                 if len(route_info["components"]) != len(r["args"]):
-                    raise InputMismatchError(f"{len(r['args'])} args object(s) are supplied for route {r['name']} "
-                                             f"in tour {t['name']} but route has {len(route_info['components'])} "
-                                             f"components. The number must match.")
+                    raise InputMismatchError(
+                        f"{len(r['args'])} args object(s) are supplied for route {r['name']} "
+                        f"in tour {t['name']} but route has {len(route_info['components'])} "
+                        f"components. The number must match."
+                    )
                 for c, c_args in zip(route_info["components"], r["args"]):
                     if c_args is not None:
-                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"]["c"], **c_args)
+                        new_route.append(
+                            components[f"{c['u']}-{c['v']}-{c['key']}"]["c"], **c_args
+                        )
                     else:
-                        new_route.append(components[f"{c['u']}-{c['v']}-{c['key']}"]["c"])
+                        new_route.append(
+                            components[f"{c['u']}-{c['v']}-{c['key']}"]["c"]
+                        )
                 new_tour.append(new_route)
-            self._tours[t['name']] = new_tour
+            self._tours[t["name"]] = new_tour
 
     def add_routes_and_tours_from_json_files(self, routes_filepath, tours_filepath):
         """Add a set of routes and tours from JSON files
