@@ -1,0 +1,102 @@
+[
+  {
+    "name": "R-Eastbound",
+    "components": [
+      {
+        "u": "yonge-west",
+        "v": "yonge-east",
+        "key": "Y"
+      },
+      {
+        "u": "yonge-east",
+        "v": "bayview-west",
+        "key": "S"
+      },
+      {
+        "u": "bayview-west",
+        "v": "bayview-east",
+        "key": "S"
+      },
+      {
+        "u": "bayview-east",
+        "v": "bessarion-west",
+        "key": "S"
+      },
+      {
+        "u": "bessarion-west",
+        "v": "bessarion-east",
+        "key": "S"
+      },
+      {
+        "u": "bessarion-east",
+        "v": "leslie-west",
+        "key": "S"
+      },
+      {
+        "u": "leslie-west",
+        "v": "leslie-east",
+        "key": "S"
+      },
+      {
+        "u": "leslie-east",
+        "v": "donmills-west",
+        "key": "S"
+      },
+      {
+        "u": "donmills-west",
+        "v": "donmills-east",
+        "key": "Y"
+      }
+    ]
+  },
+  {
+    "name": "R-Westbound",
+    "components": [
+      {
+        "u": "donmills-west",
+        "v": "donmills-east",
+        "key": "Y"
+      },
+      {
+        "u": "leslie-east",
+        "v": "donmills-west",
+        "key": "N"
+      },
+      {
+        "u": "leslie-west",
+        "v": "leslie-east",
+        "key": "N"
+      },
+      {
+        "u": "bessarion-east",
+        "v": "leslie-west",
+        "key": "N"
+      },
+      {
+        "u": "bessarion-west",
+        "v": "bessarion-east",
+        "key": "N"
+      },
+      {
+        "u": "bayview-east",
+        "v": "bessarion-west",
+        "key": "N"
+      },
+      {
+        "u": "bayview-west",
+        "v": "bayview-east",
+        "key": "N"
+      },
+      {
+        "u": "yonge-east",
+        "v": "bayview-west",
+        "key": "N"
+      },
+      {
+        "u": "yonge-west",
+        "v": "yonge-east",
+        "key": "Y"
+      }
+    ]
+  }
+]
