@@ -141,11 +141,13 @@ class LognormalJitter(BaseJitter):
 
         # Calculate the s parameter used by scipy's lognorm function based
         # on the supplied mean and standard deviation.
-        self._s = np.sqrt(np.log(((std * std) / (mean * mean)) + 1))
+        a = 1 + (std / mean) ** 2
+        self._s = np.sqrt(np.log(a))
+        self._scale = mean / np.sqrt(a)
         super().__init__()
 
     def jitter(self):
-        return round(lognorm.rvs(self._s))
+        return round(lognorm.rvs(s=self._s, scale=self._scale))
 
 
 class DisruptionJitter(BaseJitter):
@@ -177,7 +179,9 @@ class DisruptionJitter(BaseJitter):
         """
 
         if p > 1.0 or p < 0.0:
-            raise NotAProbabilityError("The probability value must be in the range [0, 1]")
+            raise NotAProbabilityError(
+                "The probability value must be in the range [0, 1]"
+            )
         self._p = p
         self._delay = int(delay)
         super().__init__()
