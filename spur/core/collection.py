@@ -103,8 +103,10 @@ class BlockExclusiveZone(BaseCollection):
             self.pop_from_wait_queue()
             self.occupied = True
         else:
-            raise Exception(f"Cannot complete acceptance of agent {agent.uid} into {self.uid} "
-                            f"even though it was allowed to enter")
+            raise Exception(
+                f"Cannot complete acceptance of agent {agent.uid} into {self.uid} "
+                f"even though it was allowed to enter"
+            )
 
     def release_agent(self, agent: Agent) -> None:
         # If agent is staying in the same BEZ, do nothing

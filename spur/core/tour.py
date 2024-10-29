@@ -53,7 +53,9 @@ class Tour:
             if tour_segment.next is not None:
                 if len(tour_segment.next.route.segments) > 0:
                     # Encode departure time from the bridging component between two routes
-                    route_segment.departure = tour_segment.next.route.segments[0].departure
+                    route_segment.departure = tour_segment.next.route.segments[
+                        0
+                    ].departure
                     # Link two routes together
                     route_segment.next = tour_segment.next.route.segments[1]
                 else:
@@ -86,9 +88,14 @@ class Tour:
             prev = self.tour_segments[-1]
 
         # Check if last route component of prev matches with first route component of route being appended
-        if prev is not None and prev.route.segments[-1].component.uid != route.segments[0].component.uid:
-            raise InputMismatchError(f"Route being appended does not have the same starting component as "
-                                     f"the ending component of previous route")
+        if (
+            prev is not None
+            and prev.route.segments[-1].component.uid != route.segments[0].component.uid
+        ):
+            raise InputMismatchError(
+                f"Route being appended does not have the same starting component as "
+                f"the ending component of previous route"
+            )
 
         # Add the segment to the list
         tour_segment = TourSegment(self, route, prev, None)

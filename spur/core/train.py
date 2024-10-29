@@ -99,7 +99,9 @@ class Train(Agent):
                 self.agentLog.info(
                     f"OUT,{self._current_segment.component.uid},{self._current_segment.component.__name__}"
                 )
-                self.simLog.debug(f"Finished traversing {self._current_segment.component.uid}")
+                self.simLog.debug(
+                    f"Finished traversing {self._current_segment.component.uid}"
+                )
             self._current_segment = segment
             # Release the previous segment's resource once train is in the new segment
             if prev_req is not None:
@@ -119,9 +121,7 @@ class Train(Agent):
                         f"Departure | Now: {self.model.now} | Schedule: {segment.departure} | Wait: {wait_time}"
                     )
                     if wait_time > 0:
-                        self.simLog.debug(
-                            f"Waiting for {wait_time} before departure"
-                        )
+                        self.simLog.debug(f"Waiting for {wait_time} before departure")
                     yield self.model.timeout(wait_time)
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")

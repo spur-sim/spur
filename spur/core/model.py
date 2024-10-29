@@ -71,7 +71,7 @@ class Model(Environment):
         self.simLog.addHandler(fh)
 
         # Set up logfile output and formatting for debug
-        if debug == True:
+        if debug is True:
             dfh = logging.FileHandler("log/debug.log", mode="w")
             dfh.setLevel(logging.DEBUG)
             dfh.addFilter(SimLogFilter(self))

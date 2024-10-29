@@ -186,7 +186,7 @@ class RouteSegment:
     departure : int
             The permitted departure time from the route segment in simulation time
     """
-    
+
     __name__ = "RouteSegment"
 
     def __init__(self, route, component, prev, next, arrival, departure):
