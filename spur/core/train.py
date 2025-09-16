@@ -54,6 +54,14 @@ class Train(Agent):
         # Override the agent logging information
         self.agentLog = logging.getLogger(f"agent.{self.__name__}.{uid}")
 
+    @property
+    def speed(self):
+        return self._speed
+
+    @speed.setter
+    def speed(self, speed):
+        self._speed = speed
+
     def __repr__(self):
         return f"Train {self.uid}"
 
@@ -99,7 +107,9 @@ class Train(Agent):
                 self.agentLog.info(
                     f"OUT,{self._current_segment.component.uid},{self._current_segment.component.__name__}"
                 )
-                self.simLog.debug(f"Finished traversing {self._current_segment.component.uid}")
+                self.simLog.debug(
+                    f"Finished traversing {self._current_segment.component.uid}"
+                )
             self._current_segment = segment
             # Release the previous segment's resource once train is in the new segment
             if prev_req is not None:
@@ -119,9 +129,7 @@ class Train(Agent):
                         f"Departure | Now: {self.model.now} | Schedule: {segment.departure} | Wait: {wait_time}"
                     )
                     if wait_time > 0:
-                        self.simLog.debug(
-                            f"Waiting for {wait_time} before departure"
-                        )
+                        self.simLog.debug(f"Waiting for {wait_time} before departure")
                     yield self.model.timeout(wait_time)
                 except Interrupt:
                     self.simLog.warn("I was interrupted!")
@@ -140,7 +148,7 @@ class Train(Agent):
         self.simLog.debug("Finished my tour, going idle...")
 
     def get_basic_traversal_time(self, distance, track_speed, final_speed):
-        """WARNING: NOT IMPLEMENTED"""
+        raise NotImplementedError("Basic Traversal Time Is Not Implemented")
 
         # Ajudst final requested speed based on our capabilities and allowed
         final_speed = min(final_speed, self.max_speed, track_speed)
@@ -194,6 +202,7 @@ class Train(Agent):
 
         WARNING: NOT CURRENTLY USED
         """
+        raise NotImplementedError("Basic Traversal Not Implemented")
         # TODO: Add station stop logic in here?
         next_segment = self._current_segment.next
         if next_segment is None:

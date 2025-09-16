@@ -3,6 +3,7 @@ Base classes of Spur's component types.
 
 :class:`BaseComponent` defines the abstract base component.
 """
+
 import logging
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, List, Optional
@@ -101,7 +102,7 @@ class BaseComponent(BaseItem, ABC):
         return f"Component {self.uid}"
 
     @property
-    def collection(self) -> Optional['BaseCollection']:
+    def collection(self) -> Optional["BaseCollection"]:
         return self._collection
 
     @property
@@ -181,7 +182,7 @@ class BaseComponent(BaseItem, ABC):
                     clean["args"][clean_k] = d[k]
         return clean
 
-    def can_accept_agent(self, agent: 'Agent') -> bool:
+    def can_accept_agent(self, agent: "Agent") -> bool:
         """Check whether `agent` is eligible to use this component based on component and
         collection states.
 
@@ -216,7 +217,9 @@ class BaseComponent(BaseItem, ABC):
 class ResourceComponent(BaseComponent):
     __name__ = "Base Resource Component"
 
-    def __init__(self, model, uid, resource: 'SpurResource', jitter, collection) -> None:
+    def __init__(
+        self, model, uid, resource: "SpurResource", jitter, collection
+    ) -> None:
         self._res = resource
         super().__init__(model, uid, jitter, collection)
 
@@ -244,7 +247,7 @@ class SpurRequest(Request):
         The agent making the request
     """
 
-    def __init__(self, resource: 'SpurResource', agent: 'Agent'):
+    def __init__(self, resource: "SpurResource", agent: "Agent"):
         self._agent = agent
         super().__init__(resource)
 
@@ -268,13 +271,15 @@ class SpurResource(Resource):
 
     users: List[SpurRequest]
 
-    def __init__(self, env: Environment, component: ResourceComponent, capacity: int = 1):
+    def __init__(
+        self, env: Environment, component: ResourceComponent, capacity: int = 1
+    ):
         self._component = component
         super().__init__(env, capacity)
 
     if TYPE_CHECKING:
 
-        def request(self, agent: 'Agent' = None) -> SpurRequest:
+        def request(self, agent: "Agent" = None) -> SpurRequest:
             """Request a usage slot for the given *agent*."""
             return SpurRequest(self, agent)
 
@@ -287,9 +292,8 @@ class SpurResource(Resource):
         release = BoundClass(Release)
 
     def _do_put(self, event: SpurRequest) -> None:
-        if (
-            len(self.users) < self.capacity
-            and self._component.can_accept_agent(event.agent)
+        if len(self.users) < self.capacity and self._component.can_accept_agent(
+            event.agent
         ):
             self.users.append(event)
             self._component.accept_agent(event.agent)
@@ -314,7 +318,7 @@ class Agent(BaseItem, ABC):
     def __init__(self, model, uid, tour, max_speed) -> None:
         self._current_segment = None  # The current segment
         self.tour = tour
-        self.speed = 0
+        self._speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
         self.agentLog = logging.getLogger("agent")

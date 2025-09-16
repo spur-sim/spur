@@ -3,6 +3,8 @@ import pytest
 
 from spur.core import Model
 from spur.core.component import TimedTrack
+from spur.core.route import Route
+from spur.core.tour import Tour
 
 # Test data
 DATA_DIRECTORY = pathlib.Path(__file__).resolve().parent / "data"
@@ -55,3 +57,13 @@ def toy_model_with_components(toy_model_base):
         TimedTrack, "3", "4", "A", traversal_time=80, capacity=1
     )
     return toy_model_base
+
+
+@pytest.fixture
+def toy_model_tour(toy_model_with_components):
+    r = Route()
+    for c in toy_model_with_components.components:
+        r.append(c)
+    t = Tour(creation_time=10, deletion_time=100)
+    t.append(r)
+    return t

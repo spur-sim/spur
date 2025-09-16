@@ -187,6 +187,6 @@ class TourSegment:
     def next(self):
         return self._next
     
-    @prev.setter
-    def prev(self, next):
+    @next.setter
+    def next(self, next):
         self._next = next
