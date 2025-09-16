@@ -151,10 +151,10 @@ class TourSegment:
         self.logger = logging.getLogger(
             f"{logger.name}.{self.__name__}.{route.uids()}"  # TODO: add uid attribute to route
         )
-        self.tour = tour
-        self.route = route
-        self.prev = prev
-        self.next = next
+        self._tour = tour
+        self._route = route
+        self._prev = prev
+        self._next = next
 
     def __repr__(self):
         return f"TourSegment {self.route.uids()}"
@@ -174,3 +174,19 @@ class TourSegment:
     @route.setter
     def route(self, route):
         self._route = route
+
+    @property
+    def prev(self):
+        return self._prev
+    
+    @prev.setter
+    def prev(self, prev):
+        self._prev = prev
+
+    @property
+    def next(self):
+        return self._next
+    
+    @prev.setter
+    def prev(self, next):
+        self._next = next
