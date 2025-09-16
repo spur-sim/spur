@@ -110,18 +110,24 @@ class Tour:
         idx : int
             The location in the list to insert the route.
         """
-        next = self.tour_segments[idx]
-        # Get the prev pointer
-        if idx == 0:
-            # Start of the list
-            prev = None
+        # Check if tour length is zero
+        if len(self.tour_segments) == 0:
+            # Just append
+            self.append(route)
         else:
-            prev = self.tour_segments[idx - 1]
+            next = self.tour_segments[idx]
+            # Get the prev pointer
+            if idx == 0:
+                # Start of the list
+                prev = None
+            else:
+                prev = self.tour_segments[idx - 1]
 
-        tour_segment = TourSegment(self, route, prev, next)
-        if tour_segment.prev:
-            tour_segment.prev.next = tour_segment
-        tour_segment.next.prev = tour_segment
+            tour_segment = TourSegment(self, route, prev, next)
+            if tour_segment.prev:
+                tour_segment.prev.next = tour_segment
+            tour_segment.next.prev = tour_segment
+            self.tour_segments.insert(idx, tour_segment)
 
 
 class TourSegment:
@@ -145,10 +151,10 @@ class TourSegment:
         self.logger = logging.getLogger(
             f"{logger.name}.{self.__name__}.{route.uids()}"  # TODO: add uid attribute to route
         )
-        self.tour = tour
-        self.route = route
-        self.prev = prev
-        self.next = next
+        self._tour = tour
+        self._route = route
+        self._prev = prev
+        self._next = next
 
     def __repr__(self):
         return f"TourSegment {self.route.uids()}"
@@ -168,3 +174,19 @@ class TourSegment:
     @route.setter
     def route(self, route):
         self._route = route
+
+    @property
+    def prev(self):
+        return self._prev
+    
+    @prev.setter
+    def prev(self, prev):
+        self._prev = prev
+
+    @property
+    def next(self):
+        return self._next
+    
+    @next.setter
+    def next(self, next):
+        self._next = next

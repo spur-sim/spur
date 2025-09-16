@@ -83,6 +83,8 @@ class UniformJitter(BaseJitter):
         maximum : int
             The upper bound of the uniform distribution
         """
+        if maximum < minimum:
+            raise ValueError("Maximum value should be larger than minimum.")
         self._min = minimum
         self._max = maximum
         super().__init__()
