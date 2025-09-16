@@ -160,10 +160,11 @@ class Model(Environment):
         """
 
         # We go through each train and get it started
-        self.simLog.info("Simulation is starting...")
+        self.simLog.info("Model initialization started")
         for key in self.trains.keys():
             self._trains[key].start()
         self.simLog.info(f"Activated {len(self.trains.keys())} trains")
+        self.simLog.info("Model initialization finished successfully")
 
     def run(self, until=None):
         """Run the model for a specified time
@@ -174,9 +175,12 @@ class Model(Environment):
             The number of steps to run the model for, by default None which runs
             until all components finished.
         """
-        self.simLog.info("Starting model run")
+        if self.now > 0:
+            self.simLog.info("Model resumed")
+        else:
+            self.simLog.info("Model started")
         super().run(until)
-        self.simLog.info("Finished model run")
+        self.simLog.info("Model stopped")
 
     @classmethod
     def from_project_dictionary(cls, project):
