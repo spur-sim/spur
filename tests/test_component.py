@@ -9,8 +9,8 @@ from spur.core.component import (
     TimedTrack,
     PhysicsTrack,
 )
-
 from spur.core.jitter import NoJitter
+from spur.core.train import Train
 
 
 class TestMultiBlockTrack:
