@@ -110,18 +110,24 @@ class Tour:
         idx : int
             The location in the list to insert the route.
         """
-        next = self.tour_segments[idx]
-        # Get the prev pointer
-        if idx == 0:
-            # Start of the list
-            prev = None
+        # Check if tour length is zero
+        if len(self.tour_segments) == 0:
+            # Just append
+            self.append(route)
         else:
-            prev = self.tour_segments[idx - 1]
+            next = self.tour_segments[idx]
+            # Get the prev pointer
+            if idx == 0:
+                # Start of the list
+                prev = None
+            else:
+                prev = self.tour_segments[idx - 1]
 
-        tour_segment = TourSegment(self, route, prev, next)
-        if tour_segment.prev:
-            tour_segment.prev.next = tour_segment
-        tour_segment.next.prev = tour_segment
+            tour_segment = TourSegment(self, route, prev, next)
+            if tour_segment.prev:
+                tour_segment.prev.next = tour_segment
+            tour_segment.next.prev = tour_segment
+            self.tour_segments.insert(idx, tour_segment)
 
 
 class TourSegment:
