@@ -7,6 +7,8 @@ from spur.core import Model
 from spur.core.route import Route
 from spur.core.exception import NotUniqueIDError
 
+from spur.io.formats import read_components_json, read_tours_json, read_routes_json
+
 import pytest
 
 # Tests needed
@@ -29,17 +31,3 @@ class TestModelInitialization:
         with pytest.raises(NotUniqueIDError):
             toy_model_with_components.add_train(1, 20, r)
             toy_model_with_components.add_train(1, 20, r)
-
-
-class TestModelLoadData:
-    def test_add_components_from_json_file(self, components_json_file):
-        m = Model()
-        m.add_components_from_json_file(components_json_file)
-        assert len(m.components) == 16
-
-    def test_add_routes_and_tours_from_json_file(
-        self, components_json_file, routes_json_file, tours_json_file
-    ):
-        m = Model()
-        m.add_components_from_json_file(components_json_file)
-        m.add_routes_and_tours_from_json_files(routes_json_file, tours_json_file)
