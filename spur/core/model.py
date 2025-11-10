@@ -1,8 +1,9 @@
 """Contains classes describing the model controller"""
 
+import importlib
 import logging
 import json
-import importlib
+from typing import List, Dict
 
 from simpy import Environment
 from networkx import MultiGraph
@@ -11,8 +12,9 @@ from spur.core.train import Train
 from spur.core.jitter import NoJitter
 from spur.core.route import Route
 from spur.core.tour import Tour
-
 from spur.core.exception import NotUniqueIDError, InputMismatchError
+
+from spur.io.formats import read_components_json
 
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)
@@ -107,7 +109,7 @@ class Model(Environment):
             d_out[d["c"].uid] = {"c": d["c"], "u": u, "v": v}
         return d_out
 
-    def add_component(self, component_type, u, v, key, *args, **kwargs):
+    def _add_component(self, component_type, u, v, key, *args, **kwargs):
         """Add a component to the model network
 
         Parameters
@@ -185,12 +187,12 @@ class Model(Environment):
     @classmethod
     def from_project_dictionary(cls, project):
         model = cls()
-        model.add_components_from_list(project["components"])
-        model.add_routes_and_tours_from_lists(project["routes"], project["tours"])
-        model.add_trains_from_list(project["trains"])
+        model.add_components(project["components"])
+        model.add_routes_and_tours(project["routes"], project["tours"])
+        model.add_trains(project["trains"])
         return model
 
-    def add_components_from_list(self, components):
+    def add_components(self, components: List[Dict]):
         """Add a list of components to the network
 
         Parameters
@@ -229,7 +231,7 @@ class Model(Environment):
             else:
                 collection = None
 
-            self.add_component(
+            self._add_component(
                 component,
                 c["u"],
                 c["v"],
@@ -239,20 +241,7 @@ class Model(Environment):
                 **c["args"],
             )
 
-    def add_components_from_json_file(self, filepath):
-        """Add a set of components from a formatted JSON file
-
-        Parameters
-        ----------
-        filepath : str
-            The path to the JSON file containing components.
-        """
-        self.simLog.info("Loading components from JSON file")
-        with open(filepath, "r") as infile:
-            components = json.load(infile)
-        self.add_components_from_list(components)
-
-    def add_routes_and_tours_from_lists(self, routes, tours):
+    def add_routes_and_tours(self, routes, tours):
         """Add routes and tours to the model from lists
 
         Parameters
@@ -296,26 +285,7 @@ class Model(Environment):
                 new_tour.append(new_route)
             self._tours[t["name"]] = new_tour
 
-    def add_routes_and_tours_from_json_files(self, routes_filepath, tours_filepath):
-        """Add a set of routes and tours from JSON files
-
-        Parameters
-        ----------
-        routes_filepath : str
-            The path to the routes JSON file
-        tours_filepath : str
-            The path to the tours JSON file
-        """
-
-        with open(routes_filepath, "r") as infile_r:
-            routes = json.load(infile_r)
-
-        with open(tours_filepath, "r") as infile_t:
-            tours = json.load(infile_t)
-
-        self.add_routes_and_tours_from_lists(routes, tours)
-
-    def add_trains_from_list(self, trains):
+    def add_trains(self, trains: List[Dict]) -> None:
         """Add trains to the model from a list of train objects
 
         Parameters
@@ -328,16 +298,3 @@ class Model(Environment):
             self.add_train(
                 t["name"], max_speed=t["max_speed"], tour=self._tours[t["tour"]]
             )
-
-    def add_trains_from_json_file(self, filepath):
-        """Add a set of trains to the model from a formatted JSON file
-
-        Parameters
-        ----------
-        filepath : str
-            The path to the JSON file
-        """
-
-        with open(filepath, "r") as infile:
-            trains = json.load(infile)
-        self.add_trains_from_list(trains)
