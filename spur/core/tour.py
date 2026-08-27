@@ -34,14 +34,12 @@ class Tour:
         It also merges the last segment of one route with the first of
         the next route (both of which should be the same).
 
-        Raises
-        ------
-        StopIteration
-            If the tour segments list is empty on traversal
+        Yields nothing and returns immediately if the tour segments list,
+        or the next tour segment's route, is empty.
         """
         if len(self.tour_segments) == 0:
             logger.warn("Trying to traverse an empty list.")
-            raise StopIteration
+            return
 
         tour_segment = self.tour_segments[0]
         route_segment = tour_segment.route.segments[0]
@@ -59,7 +57,7 @@ class Tour:
                 else:
                     # Error checking on empty route segments list for next tour segment
                     logger.warn("The next route in the tour is empty.")
-                    raise StopIteration
+                    return
             yield route_segment
             route_segment = route_segment.next
             tour_segment = tour_segment.next

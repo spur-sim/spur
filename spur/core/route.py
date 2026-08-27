@@ -27,14 +27,12 @@ class Route:
         This method traverses through sequential `RouteSegments` and
         provides instruction to the agents.
 
-        Raises
-        ------
-        StopIteration
-            If the segments list is empty on traversal
+        Yields nothing and returns immediately if the segments list is
+        empty.
         """
         if len(self.segments) == 0:
             logger.warn("Trying to traverse an empty list.")
-            raise StopIteration
+            return
         segment = self.segments[0]
         while segment is not None:
             yield segment

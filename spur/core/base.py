@@ -160,7 +160,7 @@ class BaseComponent(BaseItem, ABC):
             A dictionary contianing the required keys and values describing the component.
         """
 
-        d = self.__dict__
+        d = dict(self.__dict__)
         d.pop("_res", None)
         d.pop("_agents", None)
         d.pop("simLog", None)
