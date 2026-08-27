@@ -55,8 +55,9 @@ class BaseItem(ABC):
 
         # Set base logging information
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
-        # Set simulation logging information
-        self.simLog = logging.getLogger("sim.base")
+        # Set simulation logging information, scoped as a child of the
+        # owning model's own simLog so it shares that model's handlers.
+        self.simLog = logging.getLogger(f"{model.simLog.name}.base")
         self.simLog.debug("I am alive!")
 
     @property
@@ -321,15 +322,12 @@ class Agent(BaseItem, ABC):
         self._speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
-        self.agentLog = logging.getLogger("agent")
+        # Scoped as a child of the owning model's agent logger, so this
+        # agent's records flow through whatever handler (if any) the model
+        # attached to its own agentLog, without ever sharing a logger with
+        # agents belonging to a different Model instance.
+        self.agentLog = logging.getLogger(f"{model.agentLog.name}.{uid}")
         self.agentLog.setLevel(logging.INFO)
-        # Set up logfile output for agents
-        fh = logging.FileHandler("log/agent.log", mode="w")
-        fh.setLevel(logging.INFO)
-        fh.addFilter(SimLogFilter(model))
-        simFileFormatter = logging.Formatter("%(now)d,%(name)s,%(message)s", style="%")
-        fh.setFormatter(simFileFormatter)
-        self.agentLog.addHandler(fh)
 
     @property
     def speed(self):

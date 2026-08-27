@@ -3,6 +3,7 @@
 import importlib
 import logging
 import json
+import uuid
 from typing import List, Dict
 
 from simpy import Environment
@@ -41,18 +42,32 @@ class Model(Environment):
         The logging component of the model
     """
 
-    def __init__(self, debug=False, *args, **kwargs):
+    def __init__(
+        self,
+        uid=None,
+        sim_log_file=None,
+        debug_log_file=None,
+        agent_log_file=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        # A unique identifier for this model instance, used to scope its
+        # loggers so that no two Model instances ever share a logger (and
+        # therefore never share/stack log handlers).
+        self.uid = uid or uuid.uuid4().hex[:8]
         self.G = MultiGraph()
         self._trains = {}
         self._tours = {}  # Used as a container to keep track of possible tours
         self._collections = {}  # Used as a container to keep track of all collections
 
-        # Set up logging environment for the simulation output
-        self.simLog = logging.getLogger("sim")
+        # Set up logging environment for the simulation output, scoped to
+        # this model instance so multiple Models never share a logger.
+        self.simLog = logging.getLogger(f"sim.{self.uid}")
         self.simLog.setLevel(logging.INFO)
 
-        # Set up stout output and formatting
+        # Set up stdout output and formatting - on by default since it's
+        # scoped per-instance and can't stack across Model instances.
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)
         sh.addFilter(SimLogFilter(self))
@@ -62,26 +77,40 @@ class Model(Environment):
         sh.setFormatter(simFormatter)
         self.simLog.addHandler(sh)
 
-        # Set up logfile output and formatting
-        fh = logging.FileHandler("log/sim.log", mode="w")
-        fh.setLevel(logging.INFO)
-        fh.addFilter(SimLogFilter(self))
-        simFileFormatter = logging.Formatter(
-            "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
-        )
-        fh.setFormatter(simFileFormatter)
-        self.simLog.addHandler(fh)
-
-        # Set up logfile output and formatting for debug
-        if debug == True:
-            dfh = logging.FileHandler("log/debug.log", mode="w")
-            dfh.setLevel(logging.DEBUG)
-            dfh.addFilter(SimLogFilter(self))
+        # Logfile output is opt-in: pass a path to actually write a file.
+        if sim_log_file is not None:
+            fh = logging.FileHandler(sim_log_file, mode="w")
+            fh.setLevel(logging.INFO)
+            fh.addFilter(SimLogFilter(self))
             simFileFormatter = logging.Formatter(
                 "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
             )
-            dfh.setFormatter(simFileFormatter)
+            fh.setFormatter(simFileFormatter)
+            self.simLog.addHandler(fh)
+
+        if debug_log_file is not None:
+            dfh = logging.FileHandler(debug_log_file, mode="w")
+            dfh.setLevel(logging.DEBUG)
+            dfh.addFilter(SimLogFilter(self))
+            debugFileFormatter = logging.Formatter(
+                "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
+            )
+            dfh.setFormatter(debugFileFormatter)
             self.simLog.addHandler(dfh)
+
+        # Set up the agent (train IN/OUT) log scope for this model instance.
+        # Trains derive their own logger as a child of this one, so they
+        # all share whichever handler is attached here without any two
+        # Model instances ever touching the same logger.
+        self.agentLog = logging.getLogger(f"agent.{self.uid}")
+        self.agentLog.setLevel(logging.INFO)
+        if agent_log_file is not None:
+            afh = logging.FileHandler(agent_log_file, mode="w")
+            afh.setLevel(logging.INFO)
+            afh.addFilter(SimLogFilter(self))
+            agentFormatter = logging.Formatter("%(now)d,%(name)s,%(message)s", style="%")
+            afh.setFormatter(agentFormatter)
+            self.agentLog.addHandler(afh)
 
         self.simLog.info("Model setup complete!")
 

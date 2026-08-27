@@ -46,9 +46,50 @@ Spur is meant to become the core engine behind a licensed, hosted mesoscopic rai
 
 ## Phase 2 — Make it embeddable (removes concurrency/process-model landmines)
 
-- Remove import-time filesystem side effects from `spur/core/__init__.py` (no `FileHandler`/`os.mkdir` on import).
-- Rework logging so each `Model`/`Agent` instance gets isolated loggers/handlers (or accepts an injected logger) instead of stacking handlers onto shared global `"sim"`/`"agent"` loggers with `mode="w"` — the key change enabling multiple simulations per process.
-- Document the concurrency model the future API layer should assume (SimPy's `Environment` is single-threaded/cooperative — likely "one `Model` per process or thread, no shared mutable global state"); audit for any other global state beyond logging.
+### Root cause (confirmed by reading the code)
+
+Three places attach `logging.Handler`s to loggers with **fixed, shared names**, and each new instance stacks another handler rather than replacing one:
+
+- `spur/core/__init__.py:16-36` (import time): attaches `FileHandler("log/debug.log")`, `FileHandler("log/spur.log")`, `FileHandler("log/error.log")` (all `mode="w"`) to the module logger `"spur.core"`, and `os.mkdir("log")` on `FileNotFoundError` — runs merely from `import spur.core`, regardless of whether the caller wants file logging, and races if two processes import concurrently.
+- `Model.__init__` (`spur/core/model.py:52-84`): attaches a `StreamHandler` and `FileHandler("log/sim.log", mode="w")` (plus `log/debug.log` if `debug=True`) to `logging.getLogger("sim")` — a **fixed global name**. Every `Model()` constructed in the process adds another set of handlers to that same logger object.
+- `Agent.__init__` (`spur/core/base.py:324-332`): attaches `FileHandler("log/agent.log", mode="w")` to `logging.getLogger("agent")` — also fixed/global. Every `Train` constructed adds another handler.
+
+Per-instance logger *names* already exist in places (`Train.__init__` sets `self.simLog`/`self.agentLog` to `sim.train.{uid}` / `agent.train.{uid}`; `component.py` sets `sim.track.{Class}.{uid}`) but this doesn't help: those are **child loggers** of `"sim"`/`"agent"`, and Python's logging propagates a record up through every handler on every ancestor logger. So constructing a second `Model` or a second `Train` doesn't isolate anything — it just adds more handlers that every subsequent record (from every instance) will also pass through, while `mode="w"` truncates whatever the previous instance had already written. Confirmed no other module-level mutable global state exists in `spur/` outside of this logging setup (checked via grep for module-level `{}`/`[]`/`dict()`/`list()` assignments — none found).
+
+### Important constraint discovered before implementing: the IN/OUT agent log is a real analysis data channel
+
+`Train.run()` (`train.py:99-108,142-144`) writes structured `IN,{component.uid},{component.__name__}` / `OUT,{component.uid},{component.__name__}` records via `self.agentLog.info(...)`. Today these land in `log/agent.log` automatically because `Agent.__init__` attaches a `FileHandler` the moment any `Train` is constructed. This file is used downstream for analysis, so removing automatic file output with no replacement would silently break existing workflows. Decision: keep this as an explicit, opt-in, per-`Model`-instance file path rather than either (a) an automatic global file, or (b) removing file output and inventing a new in-memory event API (that redesign is bigger than Phase 2 and can be revisited in Phase 3 if warranted).
+
+### Fix
+
+Apply the standard practice for embeddable libraries — library code must not attach handlers or write files *implicitly*; scope every logger to the owning instance so nothing is shared across instances, and make file output an explicit constructor argument rather than an automatic side effect.
+
+1. **`spur/core/__init__.py`** — delete the `FileHandler`/`os.mkdir`/formatter setup entirely (lines 10-42). Keep only `logger = logging.getLogger(__name__)`; add `logger.addHandler(logging.NullHandler())` (the standard idiom to silence Python's "no handlers found" warning without producing output). This debug/error/spur log was purely diagnostic, not the analysis channel, so no opt-in replacement is needed here.
+
+2. **`Model.__init__`** (`model.py:44-86`) — give each `Model` its own unique logger scope instead of the literal `"sim"`:
+   - Add a `uid` constructor parameter (default: auto-generate, e.g. `uuid.uuid4().hex[:8]`) identifying this model instance.
+   - `self.simLog = logging.getLogger(f"sim.{self._uid}")` — unique per instance, so attaching handlers to it can never affect another `Model`.
+   - Keep the console `StreamHandler` attached by default (unchanged UX — seeing progress on stdout still works with zero config), since it's now attached to a per-instance logger and can't stack across instances.
+   - Replace the `debug=False` file-writing behavior and the implicit `log/sim.log` file with two new optional constructor parameters: `sim_log_file=None` and `debug_log_file=None`. If given, attach a `FileHandler(path, mode="w")` to `self.simLog` (with the appropriate level) — same output as today, just declared explicitly instead of automatic.
+   - Add a new optional parameter `agent_log_file=None`, stored on the model (e.g. `self._agent_log_file`) for `add_train`/`Agent.__init__` to consume (see next step) — this is what replaces today's automatic `log/agent.log`.
+
+3. **`Agent.__init__`** (`base.py:318-332`) — remove the hardcoded `logging.getLogger("agent")` + `FileHandler("log/agent.log")` block entirely. Instead:
+   - Accept the owning `model` (already a constructor parameter) and derive the agent's logger from the model's scope, e.g. `self.agentLog = logging.getLogger(f"agent.{model._uid}")` as a base, with `Train.__init__` continuing to further scope it per-train as it already does (`agent.{model._uid}.train.{uid}`).
+   - If `model._agent_log_file` is set, attach a `FileHandler` to the **model-scoped** logger (`agent.{model._uid}`, not the per-train child) exactly once — the natural place is in `Model.add_train`/`add_trains` the first time a train is added, guarded so it only attaches once per model even if many trains are created. Every train's IN/OUT records then land in the same file (as today), tagged with each train's own logger name in the formatted line, but scoped so a second `Model` with its own `agent_log_file` never touches this one.
+
+4. **Update `examples/line4/line4.py`** to pass `agent_log_file="log/agent.log"` (and `sim_log_file=...` if the example currently relies on that) explicitly to `Model(...)`, so the example keeps producing the same files as before with no other behavior change.
+
+5. **Document the concurrency model** (module docstring in `spur/core/__init__.py` or a short section here): SimPy's `Environment` is single-threaded/cooperative, so a `Model` is not thread-safe to drive from multiple threads at once. The supported pattern for a hosted API is one `Model` per OS process/worker, or one `Model` at a time per thread with no `Model` shared across threads. After this fix there is no shared mutable state between `Model` instances (each has its own scoped loggers and, when requested, its own log files), so running several `Model`s — sequentially, in separate threads, or in separate processes — no longer corrupts each other's output.
+
+### Explicitly deferred to Phase 5
+
+Consolidating the two divergent `SimLogFilter` classes (`base.py`'s version also truncates `record.name` to its last dotted segment for `agent.log`-style short output; `model.py`'s version doesn't, since `sim.log`/console output wants the full hierarchical name) — this is a real difference in intent, not just duplication, so it needs its own small design decision and isn't required to fix the concurrency bug. Left as-is as a Phase 5 polish item.
+
+### Verification
+
+- Add a regression test that constructs two `Model(agent_log_file=...)` instances (each pointing at a different temp file, each with at least one `Train`) in the same test process, runs both, and asserts: (a) each file contains only that model's own IN/OUT records (no cross-contamination), (b) neither file's earlier lines were truncated by the other model's construction, and (c) constructing a `Model` with no `agent_log_file`/`sim_log_file` writes no files at all and creates no `log/` directory.
+- Re-run `examples/line4/line4.py` after adding explicit `agent_log_file`/`sim_log_file` arguments and confirm `log/agent.log`/`log/sim.log` still appear with the same content shape as before.
+- Full `pytest` run stays green; confirm no `log/` directory is created as a side effect of running the test suite (`git status`/`ls` clean after `pytest`).
 
 ## Phase 3 — Give it a durable state boundary
 

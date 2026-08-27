@@ -47,12 +47,12 @@ class Train(Agent):
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
 
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.{self.__name__}.{uid}")
+        self.simLog = logging.getLogger(f"{model.simLog.name}.{self.__name__}.{uid}")
         self.simLog.debug("I am alive!")
         # self.simLog.debug(f"Tour: {self.tour.uids()}")
 
         # Override the agent logging information
-        self.agentLog = logging.getLogger(f"agent.{self.__name__}.{uid}")
+        self.agentLog = logging.getLogger(f"{model.agentLog.name}.{self.__name__}.{uid}")
 
     @property
     def speed(self):

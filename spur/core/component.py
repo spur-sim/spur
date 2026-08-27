@@ -41,7 +41,9 @@ class TimedTrack(ResourceComponent):
         resource = SpurResource(model, self, capacity=capacity)
         super().__init__(model, uid, resource, jitter, collection)
 
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     @property
     def traversal_time(self):
@@ -103,7 +105,9 @@ class PhysicsTrack(ResourceComponent):
         self.length = length
         super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     @property
     def length(self):
@@ -186,7 +190,9 @@ class MultiBlockTrack(ResourceComponent):
         resource = SpurResource(model, self, capacity=num_tracks * num_blocks)
         super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     def _get_travel_direction(self, train) -> int:
         c_dict = self._model.component_dictionary()
@@ -444,7 +450,9 @@ class SimpleYard(ResourceComponent):
         resource = SpurResource(model, self, capacity=capacity)
         super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     def do(self, train):
         # Simply yield the train as ready to go
@@ -497,7 +505,9 @@ class SimpleStation(ResourceComponent):
         self._mean_boarding = mean_boarding
         self._mean_alighting = mean_alighting
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     def do(self, train):
         # Dwell time model from San2016
@@ -568,7 +578,9 @@ class MultiTrackStation(ResourceComponent):
         )
         super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     def _train_is_stopping(self, train: Agent, current: bool) -> bool:
         """
@@ -703,7 +715,9 @@ class TimedStation(ResourceComponent):
             raise ValueError("Traversal time must be positive")
         self._traversal_time = traversal_time
         # Override the simulation logging information
-        self.simLog = logging.getLogger(f"sim.track.{self.__name__}.{self.uid}")
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
 
     def do(self, train):
         # Dwell time model from San2016
