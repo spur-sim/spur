@@ -13,10 +13,14 @@ class Route:
     ----------
     segments : list
         A list of `RouteSegment` objects to traverse in order
+    name : str, optional
+        An identifying name for the route, used to deduplicate routes shared
+        across tours when exporting a model's configuration.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, name=None) -> None:
         self.segments = []
+        self.name = name
 
     def __iter__(self):
         return self

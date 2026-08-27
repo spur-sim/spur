@@ -93,9 +93,48 @@ Consolidating the two divergent `SimLogFilter` classes (`base.py`'s version also
 
 ## Phase 3 — Give it a durable state boundary
 
-- Design and implement save/resume for `Model` state (or at minimum a resumable-run-position + serialized inputs, if full SimPy event-queue snapshotting proves impractical).
-- Harden `spur.io`: schema validation (e.g. `pydantic`/`jsonschema`) for component/route/tour/train JSON and the `.spur` project format, with clear validation errors instead of deep crashes in `Model` construction.
-- Add missing test coverage: `read_trains_json`, and a full end-to-end `from_project_dictionary` integration test including trains.
+### Decision: no mid-run pause/resume
+
+`Train.run()` (`train.py:68-148`) is a single Python generator: its position in the tour (current segment, whether it's mid-wait, which resource request it's holding) lives entirely in the suspended generator's stack frame, driven by SimPy's scheduler. Generator frames cannot be pickled in CPython, so literally freezing a live simulation and reloading it later is not achievable without rewriting train movement from a generator into an explicit state machine (segment index + phase, reconstructed step by step) — a redesign of the execution model, not a Phase 3-sized addition. Decision: skip true mid-run persistence for now; revisit only once real hosted-API requirements make it a hard need. Phase 3 instead covers two independently useful, tractable pieces: **config export** (the reverse of `from_project_dictionary`) and **input schema validation**.
+
+### 1. Config export: `Model.to_project_dictionary()`
+
+The reverse of the existing `Model.from_project_dictionary(project)` classmethod (`model.py:187-193`). Captures the *configuration* that built a model — enough to reconstruct an equivalent model from scratch (component graph, routes, tours, trains) — not live mid-run position (train locations, resource occupancy, simulation clock). Useful for saving/sharing/re-running a scenario built via the API.
+
+**Design chosen over reflection:** initially considered reconstructing each section by introspecting live objects (`component.as_dict()`, walking `Tour`/`Route` linked lists). Rejected: `as_dict()` already has a latent bug where it leaks the live `_collection` object (not JSON-serializable, and not the shape `add_components` expects for a `collection` key) into `args`, and reflection is fragile for any component with extra non-constructor instance attributes (e.g. `MultiBlockTrack`'s `_blocks`/`_track_directions`). Instead: `Model.add_components`/`add_routes_and_tours`/`add_trains` already receive the exact input dicts before construction, so `Model` simply **retains those verbatim** and `to_project_dictionary()` hands them back:
+
+- `Model.__init__` gains `self._component_specs = []`, `self._route_specs = []`, `self._tour_specs = []`, `self._train_specs = []`.
+- `add_components(components)`, `add_routes_and_tours(routes, tours)`, and `add_trains(trains)` each append/extend their raw input list into the matching `_..._specs` list, in addition to their existing construction logic.
+- `to_project_dictionary()` returns `{"components": list(self._component_specs), "routes": list(self._route_specs), "tours": list(self._tour_specs), "trains": list(self._train_specs)}` (shallow-copied so callers can't mutate the model's internal state through the returned dict).
+- This makes round-tripping **exact**, not just structurally equivalent, and sidesteps `as_dict()` entirely. Trade-off: only models built through the dict-based `add_*` methods (i.e. the intended JSON/API construction path) have anything to export — a model built by calling `_add_component`/constructing `Route`/`Tour` objects directly (as some unit tests do) has empty spec lists. That's an acceptable, documented limitation since config export exists for the save/share/re-run workflow, which always goes through the dict-based path.
+- The `Route`/`Tour` `name` attributes added above are kept regardless (they resolve the existing `# TODO: add uid attribute to route` in `tour.py:150` and are useful for logging/debugging/`__repr__`), but are no longer load-bearing for export.
+- Add `write_project_json(model, filepath)` and `read_project_json(filepath)` to `spur/io/formats.py` for a `.spur` project file (envelope: `type: "SpurProject"`, `spur_version`, `name`, plus `components`/`routes`/`tours`/`trains`). Note: `examples/gosub.spur` uses an incompatible **legacy** shape (no `tours` key at all; trains reference `"route"` directly; route components carry inline `args`) that predates the current routes/tours model and would not even load via today's `Model.from_project_dictionary` (`KeyError: 'tours'`) — it is not a valid reference for the current format and is left untouched; the new envelope follows the current, working `tests/data/*.json` shapes instead.
+
+### 2. Schema validation for `spur.io`
+
+Today `spur/io/formats.py` is four functions that do a bare `json.load` with no validation (`read_components_json`, `read_trains_json`, `read_routes_json`, `read_tours_json`) — malformed input currently fails deep inside `Model.add_components`/`add_routes_and_tours` with confusing `KeyError`s rather than a clear message pointing at the bad input.
+
+- Add `pydantic` as a new runtime dependency (`setup.py`) and a new module `spur/io/schema.py` defining models mirroring the existing JSON shapes (verified against `tests/data/test_components.json`, `test_routes.json`, `test_tours.json`, `test_trains.json`):
+  - `JitterSpec {type: str, args: dict}`, `CollectionSpec {type: str, key: str}`
+  - `ComponentSpec {type: str, u: str, v: str, key: str, name: Optional[str], args: dict, jitter: Optional[JitterSpec], collection: Optional[CollectionSpec]}`
+  - `RouteComponentRef {u: str, v: str, key: str}`, `RouteSpec {name: str, components: List[RouteComponentRef]}`
+  - `TourRouteArgs {arrival: Optional[int], departure: Optional[int]}`, `TourRouteRef {name: str, args: List[Optional[TourRouteArgs]]}`, `TourSpec {name: str, creation_time: int, deletion_time: int, routes: List[TourRouteRef]}`
+  - `TrainSpec {name: str, max_speed: PositiveInt, tour: str}`
+  - `ProjectSpec {type: Literal["SpurProject"], spur_version: str, components: List[ComponentSpec], routes: List[RouteSpec], tours: List[TourSpec], trains: List[TrainSpec]}`
+- Update each `read_*_json` function to validate the loaded JSON against its model and return `[m.model_dump(exclude_unset=True) for m in ...]` — **`exclude_unset=True` is required**, not optional: `Model.add_components` checks `if "jitter" in c.keys()` (`model.py:209`) and similar presence checks elsewhere, so validated output must not introduce keys that weren't in the original input.
+- Add a new exception, e.g. `InvalidProjectDataError(SpurError)` in `spur/core/exception.py`, and catch/re-raise `pydantic.ValidationError` as this type from the `read_*_json` functions, so callers depend on `spur`'s own exception hierarchy rather than leaking a third-party exception type.
+
+### 3. Test coverage
+
+- Unit tests for each `read_*_json` function against both valid fixture data and deliberately malformed data (missing required key, wrong type), asserting `InvalidProjectDataError` is raised with a message identifying the bad field.
+- A full end-to-end test that calls `Model.from_project_dictionary(project)` directly (not the piecemeal `add_components`/`add_routes_and_tours`/`add_trains` calls `test_integration.py` uses today) with a project dict assembled from the existing test fixture files, including trains.
+- A round-trip test: build a `Model` from the test fixtures, call `to_project_dictionary()`, rebuild a second `Model` from that export via `from_project_dictionary`, and assert equal component/route/tour/train counts and identities (not full run-output equality, since jitter introduces randomness unless fixtures are `NoJitter`-only).
+
+### Phase 3 Verification
+
+- `pytest` stays green, including new schema-validation and round-trip tests.
+- Manually corrupt one field in a copy of `tests/data/test_components.json` (e.g. remove `"key"`) and confirm `read_components_json` now raises a clear `InvalidProjectDataError` naming the missing field, instead of a later unrelated `KeyError` inside `Model.add_components`.
+- Confirm `examples/line4/line4.py` still runs unchanged (its JSON fixtures are already valid, so schema validation should be transparent to it).
 
 ## Phase 4 — Finish or formally cut incomplete features
 

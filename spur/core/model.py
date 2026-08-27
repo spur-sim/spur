@@ -61,6 +61,15 @@ class Model(Environment):
         self._tours = {}  # Used as a container to keep track of possible tours
         self._collections = {}  # Used as a container to keep track of all collections
 
+        # Verbatim copies of the input specs passed to add_components/
+        # add_routes_and_tours/add_trains, retained so to_project_dictionary
+        # can hand back an exact copy of the configuration used to build
+        # this model.
+        self._component_specs = []
+        self._route_specs = []
+        self._tour_specs = []
+        self._train_specs = []
+
         # Set up logging environment for the simulation output, scoped to
         # this model instance so multiple Models never share a logger.
         self.simLog = logging.getLogger(f"sim.{self.uid}")
@@ -230,6 +239,8 @@ class Model(Environment):
             The list of components to add
         """
 
+        self._component_specs.extend(components)
+
         for c in components:
             component = getattr(
                 importlib.import_module("spur.core.component"), c["type"]
@@ -281,6 +292,9 @@ class Model(Environment):
             A list of tour objects
         """
 
+        self._route_specs.extend(routes)
+        self._tour_specs.extend(tours)
+
         # Temporarily save the raw JSON objects for route definitions into a dictionary
         routes_raw = {}
         for r in routes:
@@ -289,9 +303,9 @@ class Model(Environment):
         components = self.component_dictionary()
 
         for t in tours:
-            new_tour = Tour(t["creation_time"], t["deletion_time"])
+            new_tour = Tour(t["creation_time"], t["deletion_time"], name=t["name"])
             for r in t["routes"]:
-                new_route = Route()
+                new_route = Route(name=r["name"])
                 route_info = routes_raw[
                     r["name"]
                 ]  # Look up the raw route info in dictionary
@@ -323,7 +337,35 @@ class Model(Environment):
             A list of train objects
         """
 
+        self._train_specs.extend(trains)
+
         for t in trains:
             self.add_train(
                 t["name"], max_speed=t["max_speed"], tour=self._tours[t["tour"]]
             )
+
+    def to_project_dictionary(self) -> Dict:
+        """Export this model's configuration as a project dictionary.
+
+        This is the reverse of `from_project_dictionary`: it returns the
+        exact components/routes/tours/trains specs this model was built
+        from, so it can be saved, shared, or used to build a new model via
+        `from_project_dictionary`. It does not capture live mid-run state
+        (train positions, resource occupancy, or the simulation clock) -
+        only models built through `add_components`/`add_routes_and_tours`/
+        `add_trains` (including via `from_project_dictionary`) have
+        anything to export; a model built by calling lower-level methods
+        directly will export empty lists.
+
+        Returns
+        -------
+        dict
+            A dictionary with "components", "routes", "tours", and "trains"
+            keys, in the same shape `from_project_dictionary` expects.
+        """
+        return {
+            "components": list(self._component_specs),
+            "routes": list(self._route_specs),
+            "tours": list(self._tour_specs),
+            "trains": list(self._train_specs),
+        }

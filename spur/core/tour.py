@@ -15,12 +15,16 @@ class Tour:
     ----------
     tour_segments : list
         A list of `TourSegment` objects to traverse in order
+    name : str, optional
+        An identifying name for the tour, used when exporting a model's
+        configuration.
     """
 
-    def __init__(self, creation_time, deletion_time) -> None:
+    def __init__(self, creation_time, deletion_time, name=None) -> None:
         self.tour_segments = []
         self.creation_time = creation_time
         self.deletion_time = deletion_time
+        self.name = name
 
     def __iter__(self):
         return self

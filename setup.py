@@ -28,5 +28,6 @@ setuptools.setup(
         "networkx",
         "scipy",
         "numpy",
+        "pydantic",
     ],
 )
