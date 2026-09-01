@@ -136,10 +136,38 @@ Today `spur/io/formats.py` is four functions that do a bare `json.load` with no 
 - Manually corrupt one field in a copy of `tests/data/test_components.json` (e.g. remove `"key"`) and confirm `read_components_json` now raises a clear `InvalidProjectDataError` naming the missing field, instead of a later unrelated `KeyError` inside `Model.add_components`.
 - Confirm `examples/line4/line4.py` still runs unchanged (its JSON fixtures are already valid, so schema validation should be transparent to it).
 
-## Phase 4 — Finish or formally cut incomplete features
+## Phase 4 — Finish or formally cut incomplete components
 
-- Decide: implement `Train.basic_traversal`/`get_basic_traversal_time` for real (making `PhysicsTrack` functional), or remove `PhysicsTrack` and its dead code until ready.
-- Same call for `TimedStation` and any other self-flagged "may not fully work" components — resolve or explicitly gate out of what the API-facing engine exposes.
+Investigation confirmed exactly two self-flagged incomplete components in `spur/core/component.py` (grepped the whole file and `train.py` for "not"/"deprecated"/"todo"/"warning" — nothing else qualifies).
+
+### 1. Cut `PhysicsTrack` (orphaned, crashes if ever used)
+
+`PhysicsTrack.do()` (`component.py:132-139`) calls `train.basic_traversal(...)`, which unconditionally `raise NotImplementedError`s — so any simulation that actually runs a train through a `PhysicsTrack` crashes; only construction is exercised by its existing tests. It is completely unused elsewhere: no example, no `spur.io`/JSON fixture references it, nothing outside its own dead code and construction-only tests. Finishing it properly (real kinematics, handling non-`PhysicsTrack` next-segments — currently an acknowledged `# TODO: Handle other components`, station-stop logic — another acknowledged TODO, deciding on `capacity > 1` support) is feature-sized work, deferred the same way mid-run-resume was deferred from Phase 3.
+
+- Remove the `PhysicsTrack` class (`component.py:66-139`).
+- Remove `Train.basic_traversal()` and `Train.get_basic_traversal_time()` (`train.py:150-227`), and the now-unused `from spur.core.component import PhysicsTrack` import (`train.py:7`).
+- Remove the now-fully-dead `self.acceleration`/`self.deceleration` assignments in `Train.__init__` (`train.py:42-43`) and their `Attributes` docstring entries (`train.py:18-21`) — they were only ever read inside the code just removed.
+- Leave `max_speed`/`speed` on `Agent`/`Train` untouched — unlike `acceleration`/`deceleration` they're required by `Agent`'s base constructor and by Phase 3's `TrainSpec.max_speed` (`spur/io/schema.py`)/`Model.add_train`; removing them would be an unrelated breaking change to already-shipped API surface, not a dead-code cleanup. They're simply not consumed by any component's `do()` today, which is fine — many sims carry a nominal max speed for reporting even without physics-based enforcement.
+- Remove `TestPhysicsTrack` (`tests/test_component.py:37-51`) and drop `PhysicsTrack` from that file's imports.
+- No doc edit needed — `docs/source/reference/core.rst` uses Sphinx `automodule`/`:members:`, so the class stops appearing once deleted.
+
+### 2. Fix `TimedStation` (small, well-scoped correctness bug)
+
+`TimedStation.__init__` validates and stores `traversal_time`, but `do()` (`component.py:722-730`) never reads it — it's a byte-for-byte copy of `SimpleStation.do()`'s San2016 boarding/alighting dwell formula instead. The docstring says "A timed station simply waits for a specified set of time," matching `TimedTrack`'s fixed-time pattern (`component.py:59-63`: `time = self.traversal_time + self._jitter.jitter()`), not `SimpleStation`'s formula. Fix: make it actually be that.
+
+- Simplify the constructor to `(model, uid, traversal_time, jitter=NoJitter(), collection=None)` — drop `mean_boarding`/`mean_alighting` entirely; that dwell model already exists correctly on `SimpleStation`/`MultiTrackStation`, and nothing depends on `TimedStation`'s current signature (no example/fixture references it).
+- Add a `traversal_time` property with validation mirroring `TimedTrack.traversal_time` (`component.py:48-57`, raising `NotPositiveError`), replacing the current bare `if traversal_time <= 0: raise ValueError(...)` inline check, for consistency with its sibling class.
+- Change `do()` to mirror `TimedTrack.do()` exactly: `time = self.traversal_time + self._jitter.jitter(); yield self.model.timeout(time)`.
+- Remove the "WARNING: may not fully work, or may have been deprecated" docstring line — no longer true once fixed.
+- Update `TestTimedStation` (`tests/test_component.py:67-87`) for the new constructor signature.
+- Add a new behavioral test that actually drives `do()` (e.g. `model.process(component.do(train))` then `model.run()`, or equivalent) and asserts the dwell equals `traversal_time` — no existing test in the repo calls any component's `do()` directly outside a full `Train.run()` integration test, so this closes a real gap for the one class this phase specifically touches.
+
+### Phase 4 Verification
+
+- `pytest` stays green, including the new `TimedStation` behavioral test.
+- `grep -rn "PhysicsTrack\|basic_traversal\|get_basic_traversal_time" spur/ tests/ examples/ docs/` returns nothing.
+- Manually construct a `TimedStation`, drive `do()` in a tiny standalone model, and confirm the yielded timeout equals `traversal_time` (not the old San2016 formula's output).
+- Confirm `examples/line4/line4.py` still runs unchanged (it uses neither class).
 
 ## Phase 5 — Hardening / polish
 

@@ -1,10 +1,8 @@
 import logging
-import math
 
 from simpy import Interrupt
 
 from spur.core.base import Agent
-from spur.core.component import PhysicsTrack
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -15,10 +13,6 @@ class Train(Agent):
 
     Attributes
     ----------
-    acceleration : float
-        The acceleration of the train (WARNING: NOT USED OR REQURIED)
-    deceleration : float
-        The deceleration of the train (WARNING: NOT USED OR REQUIRED)
     tour : `Tour`
         The tour of the train
     """
@@ -36,11 +30,9 @@ class Train(Agent):
         tour : `Tour`
             The tour of the train
         max_speed : int
-            The maximum speed of the train (WARNING: NOT CURRENTLY IMPLEMENTED)
+            The maximum speed of the train
         """
         super().__init__(model, uid, tour, max_speed)
-        self.acceleration = 1.3
-        self.deceleration = 1.3
         self._speed = 0
 
         # Override base logging information
@@ -146,82 +138,3 @@ class Train(Agent):
         self._current_segment.component.resource.release(prev_req)
 
         self.simLog.debug("Finished my tour, going idle...")
-
-    def get_basic_traversal_time(self, distance, track_speed, final_speed):
-        raise NotImplementedError("Basic Traversal Time Is Not Implemented")
-
-        # Ajudst final requested speed based on our capabilities and allowed
-        final_speed = min(final_speed, self.max_speed, track_speed)
-        # Adjust the top speed we can make reach on our capabilities and allowed
-        max_speed = min(track_speed, self.max_speed)
-
-        self.simLog.debug(
-            f"Basic Traversal Calc: (du/step) | Current: {self.speed} | Max: {max_speed} | Final: {final_speed}"
-        )
-
-        # Let's look at some cases:
-        # If we start below the max, we'll want to accel, cruise, then decel if possible
-        accel_dist = ((max_speed * max_speed) - (self.speed * self.speed)) / (
-            2 * self.acceleration
-        )
-        decel_dist = ((max_speed * max_speed) - (final_speed * final_speed)) / (
-            2 * self.deceleration
-        )
-
-        if accel_dist + decel_dist <= distance:
-            self.simLog.debug("Basic acceleration, cruise, deceleration")
-            # Simple, we just take three chunks
-            accel_time = (max_speed - self.speed) / self.acceleration
-            decel_time = (max_speed - final_speed) / self.deceleration
-            cruise_time = (distance - accel_dist - decel_dist) / max_speed
-            self.speed = final_speed
-            return accel_time + decel_time + cruise_time
-        else:
-            # Going to be an up and a down such that the sum of the two matches the distance
-            numerator = (
-                distance
-                + (self.speed**2 / (2 * self.acceleration))
-                + (final_speed**2) / (2 * self.deceleration)
-            )
-            denomenator = (1 / (2 * self.acceleration)) + (1 / (2 * self.deceleration))
-            v_peak = math.sqrt(numerator / denomenator)
-            self.simLog.debug(f"Calculated a vPeak of {v_peak:.3f} du/step")
-            time = ((v_peak - self.speed) / self.acceleration) + (
-                (v_peak - final_speed) / self.deceleration
-            )
-            self.speed = final_speed
-            return time
-
-    def basic_traversal(self, distance, track_speed):
-        """Perform a basic traversal of a cleared distance.
-
-        This method determines the final speed of a train at the end of a
-        section of track by examining the next track section for occupancy.
-        The method then calls `get_basic_traversal_time` to calculate the time
-        taken to accelerate and decelerate and traverse the track.
-
-        WARNING: NOT CURRENTLY USED
-        """
-        raise NotImplementedError("Basic Traversal Not Implemented")
-        # TODO: Add station stop logic in here?
-        next_segment = self._current_segment.next
-        if next_segment is None:
-            # End of the tour
-            final_speed = 0
-        else:
-            # Get the next segment's track speed
-            if isinstance(next_segment.component, PhysicsTrack):
-                # Now we check the occupancy
-                if (
-                    next_segment.component.resource.count
-                    == next_segment.component.resource.capacity
-                ):
-                    self.simLog.debug(
-                        f"Next track component ({next_segment.component.uid}) at capacity. Aiming to stop."
-                    )
-                    final_speed = 0
-                else:
-                    final_speed = next_segment.component.track_speed
-            else:
-                final_speed = 0  # TODO: Handle other components
-        return self.get_basic_traversal_time(distance, track_speed, final_speed)

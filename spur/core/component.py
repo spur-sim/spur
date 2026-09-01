@@ -63,82 +63,6 @@ class TimedTrack(ResourceComponent):
         yield self.model.timeout(time)
 
 
-class PhysicsTrack(ResourceComponent):
-    """A physics-based track component simulating train movement
-
-    This component uses properties of the agent using it to determine
-    the length of time to traverse the object.
-
-    **WARNING**: This component is not yet fully developed. Currently only
-        has a capcity of 1.
-
-    Attributes
-    ----------
-    model : `spur.core.model.Model`
-        The model controller
-    uid : mixed
-        The unique component id
-    length : int
-        The track length, in model distance units
-    track_speed : int
-        The maximum track speed, in model distance units per model time step
-    jitter : `spur.core.jitter.BaseJitter` child, optional
-        The Jitter object used to perturb the base time. Defaults to `NoJitter`
-
-    Raises
-    ------
-    NotPositiveError
-        If the track length or speed are not strictly positive
-    """
-
-    __name__ = "PhysicsTrack"
-
-    def __init__(
-        self, model, uid, length, track_speed, jitter=NoJitter(), collection=None
-    ) -> None:
-        resource = SpurResource(model, self, capacity=1)
-        if track_speed <= 0:
-            raise ValueError("Track speed must be positive")
-        self.track_speed = track_speed
-        if length <= 0:
-            raise ValueError("Length must be positive")
-        self.length = length
-        super().__init__(model, uid, resource, jitter, collection)
-        # Override the simulation logging information
-        self.simLog = logging.getLogger(
-            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
-        )
-
-    @property
-    def length(self):
-        return self._length
-
-    @length.setter
-    def length(self, length):
-        if length <= 0:
-            raise NotPositiveError("Length must be positive")
-        self._length = length
-
-    @property
-    def track_speed(self):
-        return self._track_speed
-
-    @track_speed.setter
-    def track_speed(self, track_speed):
-        if track_speed <= 0:
-            raise NotPositiveError("Track speed must be positive")
-        self._track_speed = track_speed
-
-    def do(self, train):
-        # Move the train through a track based on status and top speed
-
-        # Start by accelerating the train
-        time = math.ceil(train.basic_traversal(self.length, self.track_speed))
-
-        self.simLog.debug(f"Traversing me will take {time} steps.")
-        yield self.model.timeout(time)
-
-
 class MultiBlockTrack(ResourceComponent):
     """A track component that can contain multiple signal blocks and tracks in parallel.
 
@@ -674,10 +598,8 @@ class MultiTrackStation(ResourceComponent):
 class TimedStation(ResourceComponent):
     """Timed station component.
 
-    A timed station simply waits for a specified set of time.
-
-    **WARNING** This component may not fully work, or may have been
-    depreciated.
+    A timed station simply waits for a specified, fixed set of time.
+    Traversal times can be perturbed by provided jitter.
 
     Attributes
     ----------
@@ -685,10 +607,8 @@ class TimedStation(ResourceComponent):
         The model controller
     uid : mixed
         The unique component id
-    mean_boarding : int
-        The average number of passengers boarding the train at the station
-    mean_alighting : int
-        The average number of passengers alighting from the train at the station.
+    traversal_time : int
+        The baseline number of model steps a train dwells at the station
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
     """
@@ -699,35 +619,34 @@ class TimedStation(ResourceComponent):
         self,
         model,
         uid,
-        mean_boarding,
-        mean_alighting,
         traversal_time,
         jitter=NoJitter(),
         collection=None,
     ) -> None:
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter, collection)
-        if mean_boarding < 0 or mean_alighting < 0:
-            raise ValueError("Mean boarding/alighting must be nonnegative")
-        self._mean_boarding = mean_boarding
-        self._mean_alighting = mean_alighting
         if traversal_time <= 0:
             raise ValueError("Traversal time must be positive")
-        self._traversal_time = traversal_time
+        self.traversal_time = traversal_time
+        super().__init__(model, uid, resource, jitter, collection)
         # Override the simulation logging information
         self.simLog = logging.getLogger(
             f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
         )
 
+    @property
+    def traversal_time(self):
+        return self._traversal_time
+
+    @traversal_time.setter
+    def traversal_time(self, traversal_time):
+        if traversal_time <= 0:
+            raise NotPositiveError("Traversal time must be positive")
+        self._traversal_time = traversal_time
+
     def do(self, train):
-        # Dwell time model from San2016
-        dwell = round(
-            2
-            + 0.4 * self._mean_boarding
-            + 0.4 * self._mean_alighting
-            + self._jitter.jitter()
-        )
-        yield self.model.timeout(dwell)
+        time = self.traversal_time + self._jitter.jitter()
+        self.simLog.debug(f"Dwelling for {time} steps.")
+        yield self.model.timeout(time)
 
 
 class SimpleCrossover(ResourceComponent):

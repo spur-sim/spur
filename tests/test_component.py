@@ -7,7 +7,6 @@ from spur.core.component import (
     SimpleCrossover,
     TimedStation,
     TimedTrack,
-    PhysicsTrack,
 )
 from spur.core.jitter import NoJitter
 from spur.core.train import Train
@@ -34,23 +33,6 @@ class TestMultiBlockTrack:
             c = MultiBlockTrack(toy_model_base, "C-1", tracks, blocks, 50)
 
 
-class TestPhysicsTrack:
-    def test_initialization_with_defaults(self, toy_model_base):
-        c = PhysicsTrack(toy_model_base, "C-1", 10, 100)
-        assert c.uid == "C-1"
-        assert c.track_speed == 100
-        assert type(c.jitter) == NoJitter
-        assert c.collection == None
-
-    def test_initialization_with_invalid_track_speed(self, toy_model_base):
-        with pytest.raises(ValueError):
-            c = PhysicsTrack(toy_model_base, "C-1", 10, -100)
-
-    def test_initialization_with_invalid_length(self, toy_model_base):
-        with pytest.raises(ValueError):
-            c = PhysicsTrack(toy_model_base, "C-1", 0, 100)
-
-
 class TestSimpleCrossover:
     def test_initialization_with_defaults(self, toy_model_base):
         c = SimpleCrossover(toy_model_base, "C-1", 10)
@@ -66,25 +48,21 @@ class TestSimpleCrossover:
 
 class TestTimedStation:
     def test_initialization_with_defaults(self, toy_model_base):
-        c = TimedStation(toy_model_base, "S-1", 10, 10, 50)
+        c = TimedStation(toy_model_base, "S-1", 50)
         assert c.uid == "S-1"
-        assert c._mean_boarding == 10
-        assert c._mean_alighting == 10
-        assert c._traversal_time == 50
+        assert c.traversal_time == 50
         assert type(c.jitter) == NoJitter
         assert c.collection == None
 
-    @pytest.mark.parametrize(
-        ("mean_boarding", "mean_alighting", "traversal_time"),
-        [(-10, 10, 50), (-10, -10, 50), (10, 10, -50)],
-    )
-    def test_initialization_with_invalid_inputs(
-        self, toy_model_base, mean_boarding, mean_alighting, traversal_time
-    ):
+    def test_initialization_with_invalid_traversal_time(self, toy_model_base):
         with pytest.raises(ValueError):
-            c = TimedStation(
-                toy_model_base, "S-1", mean_boarding, mean_alighting, traversal_time
-            )
+            c = TimedStation(toy_model_base, "S-1", -50)
+
+    def test_do_dwells_for_traversal_time(self, toy_model_base):
+        c = TimedStation(toy_model_base, "S-1", 50)
+        toy_model_base.process(c.do(None))
+        toy_model_base.run()
+        assert toy_model_base.now == 50
 
 
 class TestTimedTrack:
