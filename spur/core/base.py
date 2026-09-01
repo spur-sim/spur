@@ -21,17 +21,6 @@ class StatusException(Exception):
     pass
 
 
-class SimLogFilter(logging.Filter):
-    def __init__(self, model, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.model = model
-
-    def filter(self, record) -> bool:
-        record.now = self.model.now
-        record.name = record.name.split(".")[-1]
-        return True
-
-
 class BaseItem(ABC):
     """Abstract base item class for components and agents
 
@@ -124,7 +113,7 @@ class BaseComponent(BaseItem, ABC):
         """
         # Acceptance into component means acceptance into collection
         if self.collection is not None:
-            self.collection.accept_agent(agent)
+            self.collection.accept_agent(agent, self)
 
         self._agents[agent.uid] = agent
 
@@ -146,7 +135,7 @@ class BaseComponent(BaseItem, ABC):
         """
         # Release from component means release from collection
         if self.collection is not None:
-            self.collection.release_agent(agent)
+            self.collection.release_agent(agent, self)
 
         self.simLog.debug(f"Releasing agent {agent.uid}")
         self.simLog.debug(f"Current Agents (before release): {self._agents}")
@@ -208,7 +197,7 @@ class BaseComponent(BaseItem, ABC):
         if self.collection is None:
             return True
 
-        return self.collection.can_accept_agent(agent)
+        return self.collection.can_accept_agent(agent, self)
 
     @abstractmethod
     def do(self, *args, **kwargs):
@@ -389,13 +378,15 @@ class BaseCollection(BaseItem, ABC):
     def __repr__(self) -> str:
         return f"Collection {self.uid}"
 
-    def can_accept_agent(self, agent: Agent) -> bool:
+    def can_accept_agent(self, agent: Agent, component: Optional[BaseComponent] = None) -> bool:
         """Check if the agent can enter the collection. Returns True by default.
 
         Parameters
         ----------
         agent : Agent
             The agent wanting to enter the collection.
+        component : BaseComponent, optional
+            The component within this collection the agent is requesting.
 
         Returns
         -------
@@ -404,23 +395,27 @@ class BaseCollection(BaseItem, ABC):
         """
         return True
 
-    def accept_agent(self, agent: Agent) -> None:
+    def accept_agent(self, agent: Agent, component: Optional[BaseComponent] = None) -> None:
         """Accept the agent into the collection. Does nothing by default.
 
         Parameters
         ----------
         agent : Agent
             The agent to be accepted into the collection.
+        component : BaseComponent, optional
+            The component within this collection the agent is entering.
         """
         pass
 
-    def release_agent(self, agent: Agent) -> None:
+    def release_agent(self, agent: Agent, component: Optional[BaseComponent] = None) -> None:
         """Release the agent from the collection. Does nothing by default.
 
         Parameters
         ----------
         agent : Agent
             The agent to be released from the collection.
+        component : BaseComponent, optional
+            The component within this collection the agent is leaving.
         """
         pass
 

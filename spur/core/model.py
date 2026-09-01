@@ -13,12 +13,45 @@ from spur.core.train import Train
 from spur.core.jitter import NoJitter
 from spur.core.route import Route
 from spur.core.tour import Tour
-from spur.core.exception import NotUniqueIDError, InputMismatchError
+from spur.core.exception import (
+    NotUniqueIDError,
+    InputMismatchError,
+    InvalidProjectDataError,
+)
 
 from spur.io.formats import read_components_json
 
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)
+
+# Whitelists of concrete class names that add_components() is allowed to
+# resolve dynamically via importlib. Without this, any name importable
+# into spur.core.component/jitter/collection's namespace would resolve -
+# including abstract bases and unrelated helper classes pulled in via
+# their own `from ... import ...` statements - not just the intended
+# concrete types. When adding a new concrete Component/Jitter/Collection
+# subclass, add its name here too.
+_COMPONENT_TYPES = frozenset(
+    {
+        "TimedTrack",
+        "MultiBlockTrack",
+        "SimpleYard",
+        "SimpleStation",
+        "MultiTrackStation",
+        "TimedStation",
+        "SimpleCrossover",
+    }
+)
+_JITTER_TYPES = frozenset(
+    {
+        "NoJitter",
+        "UniformJitter",
+        "GaussianJitter",
+        "LognormalJitter",
+        "DisruptionJitter",
+    }
+)
+_COLLECTION_TYPES = frozenset({"BlockExclusiveZone"})
 
 
 class SimLogFilter(logging.Filter):
@@ -242,11 +275,19 @@ class Model(Environment):
         self._component_specs.extend(components)
 
         for c in components:
+            if c["type"] not in _COMPONENT_TYPES:
+                raise InvalidProjectDataError(
+                    f"Unknown component type '{c['type']}'"
+                )
             component = getattr(
                 importlib.import_module("spur.core.component"), c["type"]
             )
             # Check jitter separately.
             if "jitter" in c.keys():
+                if c["jitter"]["type"] not in _JITTER_TYPES:
+                    raise InvalidProjectDataError(
+                        f"Unknown jitter type '{c['jitter']['type']}'"
+                    )
                 Jitter = getattr(
                     importlib.import_module("spur.core.jitter"), c["jitter"]["type"]
                 )
@@ -262,6 +303,10 @@ class Model(Environment):
                     collection = self.collections[collection_id]
                 else:
                     # Otherwise, create a new collection and save it
+                    if c["collection"]["type"] not in _COLLECTION_TYPES:
+                        raise InvalidProjectDataError(
+                            f"Unknown collection type '{c['collection']['type']}'"
+                        )
                     Collection = getattr(
                         importlib.import_module("spur.core.collection"),
                         c["collection"]["type"],

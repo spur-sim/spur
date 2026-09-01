@@ -171,9 +171,59 @@ Investigation confirmed exactly two self-flagged incomplete components in `spur/
 
 ## Phase 5 — Hardening / polish
 
-- Deepen test coverage on simulation mechanics (train contention over `BlockExclusiveZone`, resource queuing, timing correctness), not just construction/validation.
-- Tighten `importlib`-based dynamic class resolution in `Model.add_components` to a whitelist, since it will eventually parse externally-supplied project files through a public API.
-- Consolidate the duplicated `SimLogFilter` class (`model.py` and `base.py`); add type hints consistently to older modules (`route.py`, `tour.py`).
+### 1. Simulation-mechanics test coverage + a real bug found while designing it
+
+Investigation confirmed **no existing test exercises actual contention**: `tests/test_collection.py::test_wait_queue` calls `BlockExclusiveZone.can_accept_agent()`/`accept_agent()` directly and manually — never through a running `Model`/`SpurResource`, never calls `release_agent()`, never drains the queue. `tests/test_integration.py` runs 4 trains through a full network, but every component in `tests/data/test_components.json` has capacity ≥2 and none specifies a `collection`, so it's structurally incapable of producing contention regardless of what it asserts. No test anywhere exercises `SpurResource._do_put`'s capacity gate under real queuing, or `BlockExclusiveZone.release_agent()`'s `process_queue()` release cascade.
+
+Add two new integration-style tests (new fixtures/module, e.g. `tests/test_contention.py`, reusing the `_add_component`/`Route`/`Tour`/`Train` construction idiom already used in `test_collection.py` and `conftest.py`):
+
+- **Plain capacity-limited resource**: two trains funneling through a `capacity=1` `TimedTrack` with no collection. Step the simulation via repeated `model.run(until=...)` calls at checkpoint times and assert T2's `IN` doesn't happen until T1's `OUT` (via `agentLog` capture, same pattern `tests/test_logging.py` already uses to read back log content).
+- **`BlockExclusiveZone`**: a zone spanning ≥2 components, two trains routed through it with staggered timing so T2 queues behind T1. Unlike `test_collection.py`'s existing test (which passes `collection="test"` — a bare string, never actually wired to a real `BlockExclusiveZone` instance, so it only tests the collection object in isolation), this test constructs a real `BlockExclusiveZone` and passes the **actual instance** as each component's `collection=`, matching how `Model.add_components` really wires things. Assert `bez.occupied`/`bez.wait_queue` transitions and that T2's entry timestamp is ≥ T1's exit timestamp. Add a third train to check FIFO ordering holds with 2+ waiters.
+
+**Bug found while designing this test, fixed as part of it:** `BlockExclusiveZone.release_agent()` (`collection.py:109-122`) does `self.wait_queue[0].current_segment.next.component.resource.process_queue()` — inferring the waiting agent's target resource from `agent.current_segment.next`. But `Agent.current_segment` is `None` until an agent's *first* request ever succeeds (`train.py`: only set after `yield req` succeeds). If a train's very first-ever tour segment happens to be inside a contended `BlockExclusiveZone` and it ends up queued, the next release crashes with `AttributeError: 'NoneType' object has no attribute 'next'`.
+
+Fix: stop inferring the waiting agent's target component from tour position; track it directly.
+
+- `BlockExclusiveZone.__init__`: change `self._wait_queue` to hold `(agent, component)` pairs instead of bare agents; keep the public `wait_queue` property returning `[agent for agent, _ in self._wait_queue]` (unchanged external contract/docstring, `list[Agent]`).
+- `add_to_wait_queue(self, agent, component)` / `pop_from_wait_queue()` updated accordingly.
+- `can_accept_agent`, `accept_agent`, `release_agent` (`collection.py:73-122`) gain an optional `component=None` parameter; `release_agent` uses the stored `(agent, component)` pair directly instead of `wait_queue[0].current_segment.next.component`.
+- `BaseComponent.can_accept_agent`/`accept_agent`/`release_agent` (`base.py:117-153, 186-211`) pass `self` (the component itself, already the receiver of these calls) through to the matching `self.collection.*` call.
+- `BaseCollection`'s no-op defaults (`base.py:392-425`) gain the same optional `component=None` parameter for signature compatibility.
+- Add a regression test constructing a train whose *first* segment is inside a contended `BlockExclusiveZone`, confirming release no longer crashes.
+
+### 2. Whitelist `importlib`-based class resolution in `Model.add_components`
+
+Confirmed **not a code-execution risk today** — the module string passed to `importlib.import_module` is always one of three fixed literals (`"spur.core.component"`, `"spur.core.jitter"`, `"spur.core.collection"`), never attacker-controlled; only the *attribute name* looked up on that fixed module is externally supplied (`model.py:244-247` component, `249-253` jitter, `257-270` collection). The real gap: any name reachable on that module's namespace resolves today, including abstract bases and unrelated imported helpers pulled in via each module's own `from ... import ...` (e.g. `ResourceComponent`, `Agent`, `SpurResource`, exception classes, even stdlib-ish objects like `math`) — not just the intentional concrete classes. Worst case today is a confusing `TypeError`/`AttributeError`, not arbitrary code execution, but it should still be closed off before this path parses externally-supplied project files through a public API.
+
+- Add three whitelist sets near the top of `model.py` (reusing the post-Phase-4 concrete class lists confirmed by investigation):
+  ```python
+  _COMPONENT_TYPES = frozenset({
+      "TimedTrack", "MultiBlockTrack", "SimpleYard", "SimpleStation",
+      "MultiTrackStation", "TimedStation", "SimpleCrossover",
+  })
+  _JITTER_TYPES = frozenset({
+      "NoJitter", "UniformJitter", "GaussianJitter", "LognormalJitter", "DisruptionJitter",
+  })
+  _COLLECTION_TYPES = frozenset({"BlockExclusiveZone"})
+  ```
+- Before each `getattr(importlib.import_module(...), c["type"])`-style call in `add_components` (`model.py:244-270`), check membership and raise the existing `InvalidProjectDataError` (from Phase 3's `spur/core/exception.py` — already imported into `model.py` alongside `NotUniqueIDError`/`InputMismatchError`, so this needs no new import cycle) with a message naming the invalid type.
+- Leave `spur/io/schema.py`'s `type: str` fields as plain strings rather than tightening them to `Literal[...]` in this phase — `Model.add_components` can be called directly with raw dicts bypassing `spur.io` entirely (as tests already do), so the `Model`-layer whitelist is the real security boundary regardless; adding a second enforcement layer in the schema now would risk reintroducing the same class of circular-import problem fixed in Phase 3, for marginal benefit. Worth a future follow-up, not this phase.
+- Maintenance note (add as a code comment): adding a new concrete `Component`/`Jitter`/`Collection` subclass requires adding its name to the matching whitelist here.
+
+### 3. Consolidate `SimLogFilter`
+
+Simpler than originally scoped once investigated: `base.py`'s copy (`base.py:24-32`, the version that also truncates `record.name` to its last dotted segment) is **never instantiated anywhere in the codebase** — confirmed via repo-wide grep, only `model.py`'s own copy (`model.py:24-31`) is ever used (4 call sites, all in `model.py`, all pairing with formatters that expect the full dotted name). This is a pure deletion, not a merge: remove the dead copy from `base.py` entirely. Zero behavioral risk since nothing depends on it.
+
+### 4. Type hints for `route.py`/`tour.py`
+
+No mypy/pyright config exists anywhere in the repo (confirmed: no `pyproject.toml`, `mypy.ini`, no CI step) — hints are documentation/IDE-support value only, no enforcement added this phase. Add parameter/return type hints to `spur/core/route.py` and `spur/core/tour.py`'s public methods (currently fully untyped — `Route.__init__`, `traverse`, `append`, `insert`, all properties, `RouteSegment`/`TourSegment` and their properties), matching the style already established in `collection.py`/parts of `component.py` (e.g. `can_accept_agent(self, agent: Agent) -> bool`). Where a type is defined later in the same file or would need `Agent`/`BaseComponent` from `base.py`, follow the existing forward-reference pattern from `base.py:9,281-289` (`from typing import TYPE_CHECKING`, string-literal forward refs) only if a real import-cycle risk exists — `collection.py` shows a plain top-level `from spur.core.base import BaseCollection, Agent` is fine when there's no cycle, which is expected to be the case here too (verify no reverse import from `base.py`/`component.py` back into `route.py`/`tour.py` before assuming a plain import is safe).
+
+### Phase 5 Verification
+
+- `pytest` stays green, including the new contention tests and the `BlockExclusiveZone` first-segment regression test.
+- Manually construct a `Model.add_components` call with a bogus `type` (e.g. `"os"` or `"Agent"`) and confirm it now raises `InvalidProjectDataError` naming the bad type, instead of `AttributeError`/`TypeError` deep in construction.
+- `grep -rn "class SimLogFilter" spur/` shows exactly one definition (in `model.py`).
+- `examples/line4/line4.py` still runs unchanged.
 
 ## Explicitly Out of Scope
 

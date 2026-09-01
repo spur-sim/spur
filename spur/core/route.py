@@ -1,6 +1,9 @@
 """Contains classes describing routes and route behaviour."""
 
 import logging
+from typing import Iterator, List, Optional
+
+from spur.core.base import BaseComponent
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -18,14 +21,14 @@ class Route:
         across tours when exporting a model's configuration.
     """
 
-    def __init__(self, name=None) -> None:
+    def __init__(self, name: Optional[str] = None) -> None:
         self.segments = []
         self.name = name
 
-    def __iter__(self):
+    def __iter__(self) -> "Route":
         return self
 
-    def traverse(self):
+    def traverse(self) -> Iterator["RouteSegment"]:
         """Traverse the list of segments
 
         This method traverses through sequential `RouteSegments` and
@@ -43,15 +46,15 @@ class Route:
             segment = segment.next
 
     @property
-    def segments(self):
+    def segments(self) -> List["RouteSegment"]:
         return self._segments
 
     @segments.setter
-    def segments(self, segments):
+    def segments(self, segments: List["RouteSegment"]) -> None:
         self._segments = segments
 
     @property
-    def previous_segment(self):
+    def previous_segment(self) -> Optional["RouteSegment"]:
         """Get the previous `RouteSegment`. If the route is at the start, the
         segment will be `None`."""
         if self._node < 1:
@@ -60,7 +63,7 @@ class Route:
             return self.segments[self._node - 1]
 
     @property
-    def previous_component(self):
+    def previous_component(self) -> Optional[BaseComponent]:
         """Get the previous segment component. If the route is at the start, the
         component will be `None`."""
         if self._node < 1:
@@ -69,7 +72,7 @@ class Route:
             return self.segments[self._node - 1].component
 
     @property
-    def current_segment(self):
+    def current_segment(self) -> Optional["RouteSegment"]:
         """Get the current `RouteSegment`. If the route has ended, the
         component will be `None`."""
         try:
@@ -78,7 +81,7 @@ class Route:
             return None
 
     @property
-    def current_component(self):
+    def current_component(self) -> Optional[BaseComponent]:
         """Get the current component of the route. If the route has ended,
         the component will be `None`."""
         try:
@@ -87,7 +90,7 @@ class Route:
             return None
 
     @property
-    def next_segment(self):
+    def next_segment(self) -> Optional["RouteSegment"]:
         """Get the `RouteSegment` following the current one. If this is the end of
         the route, the segment will be `None`."""
         try:
@@ -96,7 +99,7 @@ class Route:
             return None
 
     @property
-    def next_component(self):
+    def next_component(self) -> Optional[BaseComponent]:
         """Get the component following the current one. If this is the end of
         the route, the component will be `None`"""
         try:
@@ -104,7 +107,7 @@ class Route:
         except IndexError:
             return None
 
-    def uids(self):
+    def uids(self) -> List[str]:
         """Get a list of all segment component unique IDs in the route.
 
         :return: list of uids for each component.
@@ -112,11 +115,16 @@ class Route:
         """
         return [seg.component.uid for seg in self.traverse()]
 
-    def reset(self):
+    def reset(self) -> None:
         """Set the route pointer to the beginning of the route."""
         self._node = 0
 
-    def append(self, component, arrival=None, departure=None):
+    def append(
+        self,
+        component: BaseComponent,
+        arrival: Optional[int] = None,
+        departure: Optional[int] = None,
+    ) -> None:
         """Append a component to the current route. Specified arrival and
         departure times are used to hold trains to a schedule.
 
@@ -141,7 +149,13 @@ class Route:
         # Store them in a list
         self.segments.append(segment)
 
-    def insert(self, component, idx, arrival=None, departure=None):
+    def insert(
+        self,
+        component: BaseComponent,
+        idx: int,
+        arrival: Optional[int] = None,
+        departure: Optional[int] = None,
+    ) -> None:
         """Insert a component to the current route. Specified arrival and
         departure times are used to hold trains to a schedule.
 
@@ -188,10 +202,18 @@ class RouteSegment:
     departure : int
             The permitted departure time from the route segment in simulation time
     """
-    
+
     __name__ = "RouteSegment"
 
-    def __init__(self, route, component, prev, next, arrival, departure):
+    def __init__(
+        self,
+        route: Route,
+        component: BaseComponent,
+        prev: Optional["RouteSegment"],
+        next: Optional["RouteSegment"],
+        arrival: Optional[int],
+        departure: Optional[int],
+    ) -> None:
         self.logger = logging.getLogger(
             f"{logger.name}.{self.__name__}.{component.uid}"
         )
@@ -202,37 +224,37 @@ class RouteSegment:
         self.arrival = arrival
         self.departure = departure
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"RouteSegment {self.component.uid}"
 
     @property
-    def route(self):
+    def route(self) -> Route:
         return self._route
 
     @route.setter
-    def route(self, route):
+    def route(self, route: Route) -> None:
         self._route = route
 
     @property
-    def component(self):
+    def component(self) -> BaseComponent:
         return self._component
 
     @component.setter
-    def component(self, component):
+    def component(self, component: BaseComponent) -> None:
         self._component = component
 
     @property
-    def arrival(self):
+    def arrival(self) -> Optional[int]:
         return self._arrival
 
     @arrival.setter
-    def arrival(self, arrival):
+    def arrival(self, arrival: Optional[int]) -> None:
         self._arrival = arrival
 
     @property
-    def departure(self):
+    def departure(self) -> Optional[int]:
         return self._departure
 
     @departure.setter
-    def departure(self, departure):
+    def departure(self, departure: Optional[int]) -> None:
         self._departure = departure
