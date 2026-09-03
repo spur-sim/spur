@@ -228,3 +228,14 @@ No mypy/pyright config exists anywhere in the repo (confirmed: no `pyproject.tom
 ## Explicitly Out of Scope
 
 Building the actual HTTP/REST API layer — that is a separate future repo that imports `spur` as a library once Phases 1-3 are done. Licensing changes — core engine stays MIT.
+
+## Future Work: Pausing a Running Simulation
+
+Design notes from a conversation about supporting pause/inspect/mutate/resume for a hosted API (e.g. a real-time dashboard), captured here so the reasoning isn't lost.
+
+- **Pausing a running simulation needs no code change.** SimPy's `Model.run(until=X)` can already be called repeatedly; "pause" is simply not calling it again, and "examine state while paused" is just reading `model.now`/`train.current_segment`/`component._agents`/`BlockExclusiveZone.occupied`/`wait_queue` directly — already exercised by the Phase 5 contention tests' checkpointing pattern. This only survives within a single live process; it is not a durable/cross-process snapshot mechanism (see Phase 3's "no mid-run pause/resume" decision for why that's a much bigger, deliberately deferred problem — generator frames can't be pickled).
+- **Real-time pacing is an external-caller concern**, not something `Model` needs to grow: an API layer can pace repeated `run(until=model.now + step)` calls against a wall clock to get real-time-synced behavior, with no "real-time mode" needed inside `Model` itself.
+- **Delaying a train (v2 candidate)** is a small, additive change: give `Train` a `delay(duration)` method that interrupts its own process with a structured cause, and have `run()`'s existing (currently no-op) `except Interrupt:` blocks (`spur/core/train.py`) act on that cause instead of just logging it. This does not require reworking the pause/resume contract or any existing method signature — the interrupt hooks are already structurally present, just unused.
+- **Relocating a train (v2 candidate)** is a larger, separate piece of future work: naively overwriting `current_segment` would desync the component/`BlockExclusiveZone` occupancy bookkeeping hardened in Phase 5 — a real implementation needs to properly release from the old component/collection and re-acquire at the new one, respecting capacity/zone rules, not just move a pointer.
+- **Neither v2 item requires changes to already-shipped API surface** (`Model`'s constructor, `add_train`, `run()`, `to_project_dictionary()`) — they're pure additions. The only thing worth keeping in mind for a future hosted API's v1 design: address trains/simulations by their existing stable `uid`s, and treat the "get simulation state" response shape as extensible (new optional fields later), not fixed.
+- Note: jitter (`spur/core/jitter.py`) is unseeded (uses Python's/NumPy's global `random` state) — irrelevant to pause/resume itself, but worth remembering if a future "replay to reconstruct state" approach is ever considered, since runs aren't currently reproducible.

@@ -62,9 +62,10 @@ class Train(Agent):
 
         Train agents run a simple and continuous process of moving through their
         prescribed tour, alternately requesting access to a component and then
-        calling the `do()` method of the component to be processed. Agents can
-        be interrupted from their current process and assigned a new tour
-        before they start running again.
+        calling the `do()` method of the component to be processed. SimPy
+        `Interrupt`s raised on this process are currently caught and logged
+        but otherwise ignored - no delay/reassignment handling is
+        implemented yet.
         """
         prev_req = None
 
@@ -80,6 +81,9 @@ class Train(Agent):
                         self.simLog.info(f"Waiting for {wait_time} before arrival")
                     yield self.model.timeout(wait_time)
                 except Interrupt:
+                    # Future hook: this is where a delay/reassignment
+                    # request would be handled (e.g. via a structured
+                    # interrupt cause) - currently a no-op.
                     self.simLog.warn("I was interrupted!")
             if not self._current_segment:
                 self.simLog.debug(
