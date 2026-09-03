@@ -255,6 +255,24 @@ class Model(Environment):
         super().run(until)
         self.simLog.info("Model stopped")
 
+    def log_current_state(self) -> None:
+        """Log the current location of every train to the agent log.
+
+        Unlike the `IN`/`OUT` events written automatically as trains
+        request and release components, this emits a `LOC` event for each
+        train's current component without changing any state. Useful for
+        extending a train's last-known position through to the end of a
+        run (e.g. trains still waiting/stopped when the model stops), or
+        for taking a position snapshot at an arbitrary point in time.
+        Trains that haven't started their tour yet (no current component)
+        are skipped.
+        """
+        for train in self.trains.values():
+            if train.current_segment is None:
+                continue
+            component = train.current_segment.component
+            train.agentLog.info(f"LOC,{component.uid},{component.__name__}")
+
     @classmethod
     def from_project_dictionary(cls, project):
         model = cls()
