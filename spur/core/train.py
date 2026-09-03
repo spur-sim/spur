@@ -63,9 +63,9 @@ class Train(Agent):
         Train agents run a simple and continuous process of moving through their
         prescribed tour, alternately requesting access to a component and then
         calling the `do()` method of the component to be processed. SimPy
-        `Interrupt`s raised on this process are currently caught and logged
-        but otherwise ignored - no delay/reassignment handling is
-        implemented yet.
+        `Interrupt` exceptions raised on this process are currently caught
+        and logged but otherwise ignored - no delay/reassignment handling
+        is implemented yet.
         """
         prev_req = None
 

@@ -13,6 +13,8 @@ Exception
 .. automodule:: spur.core.exception
    :members:
 
+.. _ref_jitter:
+
 Jitter
 ######
 .. automodule:: spur.core.jitter
