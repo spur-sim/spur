@@ -3,6 +3,7 @@ import logging
 from simpy import Interrupt
 
 from spur.core.base import Agent
+from spur.core.event import SimEventType
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -95,6 +96,12 @@ class Train(Agent):
             self.agentLog.info(
                 f"IN,{segment.component.uid},{segment.component.__name__}"
             )
+            self.model._emit(
+                SimEventType.IN,
+                self.uid,
+                segment.component.uid,
+                segment.component.__name__,
+            )
 
             # Release train from old segment component and update current segment
             if self._current_segment:
@@ -102,6 +109,12 @@ class Train(Agent):
                 # Finished traversing old component
                 self.agentLog.info(
                     f"OUT,{self._current_segment.component.uid},{self._current_segment.component.__name__}"
+                )
+                self.model._emit(
+                    SimEventType.OUT,
+                    self.uid,
+                    self._current_segment.component.uid,
+                    self._current_segment.component.__name__,
                 )
                 self.simLog.debug(
                     f"Finished traversing {self._current_segment.component.uid}"
@@ -137,6 +150,12 @@ class Train(Agent):
         self._current_segment.component.release_agent(self)
         self.agentLog.info(
             f"OUT,{self._current_segment.component.uid},{self._current_segment.component.__name__}"
+        )
+        self.model._emit(
+            SimEventType.OUT,
+            self.uid,
+            self._current_segment.component.uid,
+            self._current_segment.component.__name__,
         )
         self.simLog.debug(f"Finished traversing {self._current_segment.component.uid}")
         self._current_segment.component.resource.release(prev_req)

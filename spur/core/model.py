@@ -4,7 +4,7 @@ import importlib
 import logging
 import json
 import uuid
-from typing import List, Dict
+from typing import Callable, List, Dict, Optional
 
 from simpy import Environment
 from networkx import MultiGraph
@@ -13,6 +13,7 @@ from spur.core.train import Train
 from spur.core.jitter import NoJitter
 from spur.core.route import Route
 from spur.core.tour import Tour
+from spur.core.event import SimEvent, SimEventType
 from spur.core.exception import (
     NotUniqueIDError,
     InputMismatchError,
@@ -81,6 +82,7 @@ class Model(Environment):
         sim_log_file=None,
         debug_log_file=None,
         agent_log_file=None,
+        event_sink: Optional[Callable[[SimEvent], None]] = None,
         *args,
         **kwargs,
     ):
@@ -91,6 +93,15 @@ class Model(Environment):
         self.uid = uid or uuid.uuid4().hex[:8]
         self.G = MultiGraph()
         self._trains = {}
+
+        # Structured, in-memory counterpart to the agent log. Always
+        # populated regardless of `event_sink`, so a caller can simply run
+        # a model to completion and read `model.events` afterwards.
+        # `event_sink`, if given, is an additional real-time hook (e.g. for
+        # streaming events to a consumer as they're emitted) called once
+        # per event, in the same order they're appended to `self.events`.
+        self.events: List[SimEvent] = []
+        self._event_sink = event_sink
         self._tours = {}  # Used as a container to keep track of possible tours
         self._collections = {}  # Used as a container to keep track of all collections
 
@@ -155,6 +166,32 @@ class Model(Environment):
             self.agentLog.addHandler(afh)
 
         self.simLog.info("Model setup complete!")
+
+    def _emit(
+        self,
+        event: SimEventType,
+        train_uid,
+        component_uid,
+        component_type: str,
+    ) -> None:
+        """Record a structured `SimEvent`.
+
+        Appends to `self.events` and, if an `event_sink` was supplied at
+        construction, also calls it with the new event. This is the
+        structured counterpart to the `agentLog.info(...)` calls made
+        alongside it at the same call sites (see `Train.run()` and
+        `log_current_state()`).
+        """
+        ev = SimEvent(
+            time=self.now,
+            event=event,
+            train_uid=train_uid,
+            component_uid=component_uid,
+            component_type=component_type,
+        )
+        self.events.append(ev)
+        if self._event_sink is not None:
+            self._event_sink(ev)
 
     @property
     def trains(self):
@@ -272,10 +309,11 @@ class Model(Environment):
                 continue
             component = train.current_segment.component
             train.agentLog.info(f"LOC,{component.uid},{component.__name__}")
+            self._emit(SimEventType.LOC, train.uid, component.uid, component.__name__)
 
     @classmethod
-    def from_project_dictionary(cls, project):
-        model = cls()
+    def from_project_dictionary(cls, project, **model_kwargs):
+        model = cls(**model_kwargs)
         model.add_components(project["components"])
         model.add_routes_and_tours(project["routes"], project["tours"])
         model.add_trains(project["trains"])
