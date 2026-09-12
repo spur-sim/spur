@@ -76,6 +76,7 @@ Type                    ``args``
 ``MultiBlockTrack``     ``num_tracks`` (int), ``num_blocks`` (int), ``traversal_time`` (int)
 ``SimpleYard``          ``capacity`` (int)
 ``SimpleStation``       ``mean_boarding`` (int), ``mean_alighting`` (int) - dwell time from the San2016 boarding/alighting formula
+``DynamicDwellStation`` ``mean_arrival_rate`` (float), ``coefficient_a`` (float), ``coefficient_b`` (float) - dwell scales with passenger demand accumulated since the previous departure
 ``MultiTrackStation``   ``num_stopping_tracks`` (int), ``num_bypass_tracks`` (int), ``bypass_time`` (int), ``dwell_c``, ``dwell_d``, ``dwell_loc``, ``dwell_scale`` (floats - Burr-distributed dwell time parameters)
 ``TimedStation``        ``traversal_time`` (int) - a fixed-time dwell, no boarding/alighting model
 ``SimpleCrossover``     ``traversal_time`` (int)

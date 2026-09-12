@@ -444,6 +444,82 @@ class SimpleStation(ResourceComponent):
         yield self.model.timeout(dwell)
 
 
+class DynamicDwellStation(ResourceComponent):
+    """A station whose dwell time scales with passenger demand accumulated
+    since the previous train's departure, rather than a fixed mean
+    boarding/alighting count.
+
+    The number of passengers waiting to board is estimated as the mean
+    arrival rate multiplied by the headway since this station's previous
+    departure (0 for the first train to visit). Dwell time is then a linear
+    function of that estimate: ``coefficient_a + coefficient_b * passengers``,
+    where ``coefficient_a`` represents a fixed overhead (e.g. door open/close
+    time) and ``coefficient_b`` the marginal dwell time added per boarding
+    passenger.
+
+    DynamicDwellStation components have a capacity of 1.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    mean_arrival_rate : float
+        The average passenger arrival rate at the station, in passengers per
+        model time unit.
+    coefficient_a : float
+        The fixed dwell time component, independent of passenger volume.
+    coefficient_b : float
+        The marginal dwell time added per estimated boarding passenger.
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    """
+
+    __name__ = "DynamicDwellStation"
+
+    def __init__(
+        self,
+        model,
+        uid,
+        mean_arrival_rate,
+        coefficient_a,
+        coefficient_b,
+        jitter=NoJitter(),
+        collection=None,
+    ) -> None:
+        resource = SpurResource(model, self, capacity=1)
+        super().__init__(model, uid, resource, jitter, collection)
+        if mean_arrival_rate < 0:
+            raise ValueError("Mean arrival rate must be nonnegative")
+        if coefficient_a < 0 or coefficient_b < 0:
+            raise ValueError("Dwell time coefficients must be nonnegative")
+        self._mean_arrival_rate = mean_arrival_rate
+        self._coefficient_a = coefficient_a
+        self._coefficient_b = coefficient_b
+        self._last_departure = None
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
+
+    def do(self, train):
+        headway = (
+            0 if self._last_departure is None else self.model.now - self._last_departure
+        )
+        passengers = self._mean_arrival_rate * headway
+        dwell = round(
+            self._coefficient_a
+            + self._coefficient_b * passengers
+            + self._jitter.jitter()
+        )
+        self.simLog.debug(
+            f"Headway {headway}, estimated {passengers} passengers, dwell {dwell}"
+        )
+        yield self.model.timeout(dwell)
+        self._last_departure = self.model.now
+
+
 class MultiTrackStation(ResourceComponent):
     """
     With Burr dwell time distribution
