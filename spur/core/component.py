@@ -665,7 +665,7 @@ class MultiTrackStation(ResourceComponent):
 
     def do(self, train):
         if self._train_is_stopping(train, current=True):
-            dwell = round(burr.rvs(*self._dwell_params) + self._jitter.jitter())
+            dwell = round(burr.rvs(*self._dwell_params, random_state=self.model.rng) + self._jitter.jitter())
             yield self.model.timeout(dwell)
         else:
             yield self.model.timeout(self._bypass_time + self._jitter.jitter())

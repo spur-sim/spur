@@ -6,6 +6,7 @@ import json
 import uuid
 from typing import Callable, List, Dict, Optional
 
+import numpy as np
 from simpy import Environment
 from networkx import MultiGraph
 
@@ -74,6 +75,12 @@ class Model(Environment):
         The graph representation of the model system
     simLog : `logging.Logger`
         The logging component of the model
+    seed : int, optional
+        The seed the model's random number generator was created with, or
+        None if it was seeded from OS entropy (runs then differ).
+    rng : `numpy.random.Generator`
+        The model's random number generator. All jitter and other random
+        draws come from it.
     """
 
     def __init__(
@@ -83,6 +90,7 @@ class Model(Environment):
         debug_log_file=None,
         agent_log_file=None,
         event_sink: Optional[Callable[[SimEvent], None]] = None,
+        seed: Optional[int] = None,
         *args,
         **kwargs,
     ):
@@ -91,6 +99,15 @@ class Model(Environment):
         # loggers so that no two Model instances ever share a logger (and
         # therefore never share/stack log handlers).
         self.uid = uid or uuid.uuid4().hex[:8]
+
+        # All of the model's randomness (jitter, dwell time distributions)
+        # is drawn from this one generator, never from process-global
+        # state, so a seeded model is reproducible and several models in
+        # one process can't affect each other. Without a seed, each model
+        # is seeded from OS entropy and runs differ.
+        self.seed = seed
+        self.rng = np.random.default_rng(seed)
+
         self.G = MultiGraph()
         self._trains = {}
 

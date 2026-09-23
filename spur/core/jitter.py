@@ -1,6 +1,5 @@
 """Contains classes describing random perturbations known as jitter"""
 
-import random
 import logging
 
 from abc import ABC, abstractmethod
@@ -16,6 +15,14 @@ logger = logging.getLogger(__name__)
 class BaseJitter(ABC):
     """Abstract jitter component for perturbations
 
+    Attributes
+    ----------
+    rng : `numpy.random.Generator`
+        The random number generator all draws are taken from. A component
+        binds its model's generator here when the jitter is attached to it,
+        so seeding a `Model` makes its jitter reproducible. A jitter used
+        outside of any model gets its own unseeded generator.
+
     Methods
     -------
     jitter()
@@ -24,8 +31,20 @@ class BaseJitter(ABC):
 
     __name__ = "BaseComponent"
 
+    _rng = None
+
     def __init__(self) -> None:
         super().__init__()
+
+    @property
+    def rng(self) -> np.random.Generator:
+        if self._rng is None:
+            self._rng = np.random.default_rng()
+        return self._rng
+
+    @rng.setter
+    def rng(self, rng: np.random.Generator) -> None:
+        self._rng = rng
 
     @abstractmethod
     def jitter(self):
@@ -90,7 +109,7 @@ class UniformJitter(BaseJitter):
         super().__init__()
 
     def jitter(self):
-        return random.randint(self._min, self._max)
+        return int(self.rng.integers(self._min, self._max + 1))
 
 
 class GaussianJitter(BaseJitter):
@@ -119,7 +138,7 @@ class GaussianJitter(BaseJitter):
         super().__init__()
 
     def jitter(self) -> int:
-        return round(norm.rvs(loc=self._mean, scale=self._std))
+        return round(norm.rvs(loc=self._mean, scale=self._std, random_state=self.rng))
 
 
 class LognormalJitter(BaseJitter):
@@ -161,7 +180,10 @@ class LognormalJitter(BaseJitter):
         super().__init__()
 
     def jitter(self):
-        return round(lognorm.rvs(s=self._s, scale=self._scale) - self._mean)
+        return round(
+            lognorm.rvs(s=self._s, scale=self._scale, random_state=self.rng)
+            - self._mean
+        )
 
 
 class DisruptionJitter(BaseJitter):
@@ -201,7 +223,7 @@ class DisruptionJitter(BaseJitter):
         super().__init__()
 
     def jitter(self):
-        if random.random() < self._p:
+        if self.rng.random() < self._p:
             return self._delay
         else:
             return 0
