@@ -97,6 +97,39 @@ Event types
     through to the end of a run when it's still mid-traversal or waiting when
     the model stops.
 
+Structured events - the in-memory alternative to ``agent.log``
+-------------------------------------------------------------------
+
+If you're embedding Spur as a library (for example, behind an API service)
+rather than reading log files, :class:`~spur.core.model.Model` also emits
+the same IN/OUT/LOC facts as typed :class:`~spur.core.event.SimEvent`
+objects instead of text lines - no file, no parsing required.
+
+Every model always populates :attr:`Model.events <spur.core.model.Model.events>`,
+a plain list, so the simplest usage is to run a model to completion and read
+it afterwards:
+
+.. code-block:: python
+
+    model = Model()
+    ...
+    model.run()
+    for event in model.events:
+        print(event.time, event.event, event.train_uid, event.component_uid)
+
+For real-time consumption (e.g. streaming progress to a client while a run
+is in progress), pass an ``event_sink`` callable to the constructor; it is
+called once per event, in the same order events are appended to
+``model.events``:
+
+.. code-block:: python
+
+    model = Model(event_sink=lambda event: print("got", event))
+
+``event_sink`` is purely additive - it has no effect on ``agent.log`` or any
+other logging output, and vice versa; use whichever (or both) suit your
+consumer.
+
 .. _logging_multiple_models:
 
 Multiple simulations in one process
