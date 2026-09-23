@@ -3,7 +3,8 @@
 import importlib
 import logging
 import json
-from typing import List, Dict
+import uuid
+from typing import Callable, List, Dict, Optional
 
 from simpy import Environment
 from networkx import MultiGraph
@@ -12,12 +13,46 @@ from spur.core.train import Train
 from spur.core.jitter import NoJitter
 from spur.core.route import Route
 from spur.core.tour import Tour
-from spur.core.exception import NotUniqueIDError, InputMismatchError
+from spur.core.event import SimEvent, SimEventType
+from spur.core.exception import (
+    NotUniqueIDError,
+    InputMismatchError,
+    InvalidProjectDataError,
+)
 
 from spur.io.formats import read_components_json
 
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)
+
+# Whitelists of concrete class names that add_components() is allowed to
+# resolve dynamically via importlib. Without this, any name importable
+# into spur.core.component/jitter/collection's namespace would resolve -
+# including abstract bases and unrelated helper classes pulled in via
+# their own `from ... import ...` statements - not just the intended
+# concrete types. When adding a new concrete Component/Jitter/Collection
+# subclass, add its name here too.
+_COMPONENT_TYPES = frozenset(
+    {
+        "TimedTrack",
+        "MultiBlockTrack",
+        "SimpleYard",
+        "SimpleStation",
+        "MultiTrackStation",
+        "TimedStation",
+        "SimpleCrossover",
+    }
+)
+_JITTER_TYPES = frozenset(
+    {
+        "NoJitter",
+        "UniformJitter",
+        "GaussianJitter",
+        "LognormalJitter",
+        "DisruptionJitter",
+    }
+)
+_COLLECTION_TYPES = frozenset({"BlockExclusiveZone"})
 
 
 class SimLogFilter(logging.Filter):
@@ -41,18 +76,51 @@ class Model(Environment):
         The logging component of the model
     """
 
-    def __init__(self, debug=False, *args, **kwargs):
+    def __init__(
+        self,
+        uid=None,
+        sim_log_file=None,
+        debug_log_file=None,
+        agent_log_file=None,
+        event_sink: Optional[Callable[[SimEvent], None]] = None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
+        # A unique identifier for this model instance, used to scope its
+        # loggers so that no two Model instances ever share a logger (and
+        # therefore never share/stack log handlers).
+        self.uid = uid or uuid.uuid4().hex[:8]
         self.G = MultiGraph()
         self._trains = {}
+
+        # Structured, in-memory counterpart to the agent log. Always
+        # populated regardless of `event_sink`, so a caller can simply run
+        # a model to completion and read `model.events` afterwards.
+        # `event_sink`, if given, is an additional real-time hook (e.g. for
+        # streaming events to a consumer as they're emitted) called once
+        # per event, in the same order they're appended to `self.events`.
+        self.events: List[SimEvent] = []
+        self._event_sink = event_sink
         self._tours = {}  # Used as a container to keep track of possible tours
         self._collections = {}  # Used as a container to keep track of all collections
 
-        # Set up logging environment for the simulation output
-        self.simLog = logging.getLogger("sim")
+        # Verbatim copies of the input specs passed to add_components/
+        # add_routes_and_tours/add_trains, retained so to_project_dictionary
+        # can hand back an exact copy of the configuration used to build
+        # this model.
+        self._component_specs = []
+        self._route_specs = []
+        self._tour_specs = []
+        self._train_specs = []
+
+        # Set up logging environment for the simulation output, scoped to
+        # this model instance so multiple Models never share a logger.
+        self.simLog = logging.getLogger(f"sim.{self.uid}")
         self.simLog.setLevel(logging.INFO)
 
-        # Set up stout output and formatting
+        # Set up stdout output and formatting - on by default since it's
+        # scoped per-instance and can't stack across Model instances.
         sh = logging.StreamHandler()
         sh.setLevel(logging.INFO)
         sh.addFilter(SimLogFilter(self))
@@ -62,28 +130,68 @@ class Model(Environment):
         sh.setFormatter(simFormatter)
         self.simLog.addHandler(sh)
 
-        # Set up logfile output and formatting
-        fh = logging.FileHandler("log/sim.log", mode="w")
-        fh.setLevel(logging.INFO)
-        fh.addFilter(SimLogFilter(self))
-        simFileFormatter = logging.Formatter(
-            "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
-        )
-        fh.setFormatter(simFileFormatter)
-        self.simLog.addHandler(fh)
-
-        # Set up logfile output and formatting for debug
-        if debug == True:
-            dfh = logging.FileHandler("log/debug.log", mode="w")
-            dfh.setLevel(logging.DEBUG)
-            dfh.addFilter(SimLogFilter(self))
+        # Logfile output is opt-in: pass a path to actually write a file.
+        if sim_log_file is not None:
+            fh = logging.FileHandler(sim_log_file, mode="w")
+            fh.setLevel(logging.INFO)
+            fh.addFilter(SimLogFilter(self))
             simFileFormatter = logging.Formatter(
                 "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
             )
-            dfh.setFormatter(simFileFormatter)
+            fh.setFormatter(simFileFormatter)
+            self.simLog.addHandler(fh)
+
+        if debug_log_file is not None:
+            dfh = logging.FileHandler(debug_log_file, mode="w")
+            dfh.setLevel(logging.DEBUG)
+            dfh.addFilter(SimLogFilter(self))
+            debugFileFormatter = logging.Formatter(
+                "%(now)-6d %(levelname)-8s %(name)-30s  %(message)s", style="%"
+            )
+            dfh.setFormatter(debugFileFormatter)
             self.simLog.addHandler(dfh)
 
+        # Set up the agent (train IN/OUT) log scope for this model instance.
+        # Trains derive their own logger as a child of this one, so they
+        # all share whichever handler is attached here without any two
+        # Model instances ever touching the same logger.
+        self.agentLog = logging.getLogger(f"agent.{self.uid}")
+        self.agentLog.setLevel(logging.INFO)
+        if agent_log_file is not None:
+            afh = logging.FileHandler(agent_log_file, mode="w")
+            afh.setLevel(logging.INFO)
+            afh.addFilter(SimLogFilter(self))
+            agentFormatter = logging.Formatter("%(now)d,%(name)s,%(message)s", style="%")
+            afh.setFormatter(agentFormatter)
+            self.agentLog.addHandler(afh)
+
         self.simLog.info("Model setup complete!")
+
+    def _emit(
+        self,
+        event: SimEventType,
+        train_uid,
+        component_uid,
+        component_type: str,
+    ) -> None:
+        """Record a structured `SimEvent`.
+
+        Appends to `self.events` and, if an `event_sink` was supplied at
+        construction, also calls it with the new event. This is the
+        structured counterpart to the `agentLog.info(...)` calls made
+        alongside it at the same call sites (see `Train.run()` and
+        `log_current_state()`).
+        """
+        ev = SimEvent(
+            time=self.now,
+            event=event,
+            train_uid=train_uid,
+            component_uid=component_uid,
+            component_type=component_type,
+        )
+        self.events.append(ev)
+        if self._event_sink is not None:
+            self._event_sink(ev)
 
     @property
     def trains(self):
@@ -184,9 +292,28 @@ class Model(Environment):
         super().run(until)
         self.simLog.info("Model stopped")
 
+    def log_current_state(self) -> None:
+        """Log the current location of every train to the agent log.
+
+        Unlike the `IN`/`OUT` events written automatically as trains
+        request and release components, this emits a `LOC` event for each
+        train's current component without changing any state. Useful for
+        extending a train's last-known position through to the end of a
+        run (e.g. trains still waiting/stopped when the model stops), or
+        for taking a position snapshot at an arbitrary point in time.
+        Trains that haven't started their tour yet (no current component)
+        are skipped.
+        """
+        for train in self.trains.values():
+            if train.current_segment is None:
+                continue
+            component = train.current_segment.component
+            train.agentLog.info(f"LOC,{component.uid},{component.__name__}")
+            self._emit(SimEventType.LOC, train.uid, component.uid, component.__name__)
+
     @classmethod
-    def from_project_dictionary(cls, project):
-        model = cls()
+    def from_project_dictionary(cls, project, **model_kwargs):
+        model = cls(**model_kwargs)
         model.add_components(project["components"])
         model.add_routes_and_tours(project["routes"], project["tours"])
         model.add_trains(project["trains"])
@@ -201,12 +328,22 @@ class Model(Environment):
             The list of components to add
         """
 
+        self._component_specs.extend(components)
+
         for c in components:
+            if c["type"] not in _COMPONENT_TYPES:
+                raise InvalidProjectDataError(
+                    f"Unknown component type '{c['type']}'"
+                )
             component = getattr(
                 importlib.import_module("spur.core.component"), c["type"]
             )
             # Check jitter separately.
             if "jitter" in c.keys():
+                if c["jitter"]["type"] not in _JITTER_TYPES:
+                    raise InvalidProjectDataError(
+                        f"Unknown jitter type '{c['jitter']['type']}'"
+                    )
                 Jitter = getattr(
                     importlib.import_module("spur.core.jitter"), c["jitter"]["type"]
                 )
@@ -222,6 +359,10 @@ class Model(Environment):
                     collection = self.collections[collection_id]
                 else:
                     # Otherwise, create a new collection and save it
+                    if c["collection"]["type"] not in _COLLECTION_TYPES:
+                        raise InvalidProjectDataError(
+                            f"Unknown collection type '{c['collection']['type']}'"
+                        )
                     Collection = getattr(
                         importlib.import_module("spur.core.collection"),
                         c["collection"]["type"],
@@ -252,6 +393,9 @@ class Model(Environment):
             A list of tour objects
         """
 
+        self._route_specs.extend(routes)
+        self._tour_specs.extend(tours)
+
         # Temporarily save the raw JSON objects for route definitions into a dictionary
         routes_raw = {}
         for r in routes:
@@ -260,9 +404,9 @@ class Model(Environment):
         components = self.component_dictionary()
 
         for t in tours:
-            new_tour = Tour(t["creation_time"], t["deletion_time"])
+            new_tour = Tour(t["creation_time"], t["deletion_time"], name=t["name"])
             for r in t["routes"]:
-                new_route = Route()
+                new_route = Route(name=r["name"])
                 route_info = routes_raw[
                     r["name"]
                 ]  # Look up the raw route info in dictionary
@@ -294,7 +438,35 @@ class Model(Environment):
             A list of train objects
         """
 
+        self._train_specs.extend(trains)
+
         for t in trains:
             self.add_train(
                 t["name"], max_speed=t["max_speed"], tour=self._tours[t["tour"]]
             )
+
+    def to_project_dictionary(self) -> Dict:
+        """Export this model's configuration as a project dictionary.
+
+        This is the reverse of `from_project_dictionary`: it returns the
+        exact components/routes/tours/trains specs this model was built
+        from, so it can be saved, shared, or used to build a new model via
+        `from_project_dictionary`. It does not capture live mid-run state
+        (train positions, resource occupancy, or the simulation clock) -
+        only models built through `add_components`/`add_routes_and_tours`/
+        `add_trains` (including via `from_project_dictionary`) have
+        anything to export; a model built by calling lower-level methods
+        directly will export empty lists.
+
+        Returns
+        -------
+        dict
+            A dictionary with "components", "routes", "tours", and "trains"
+            keys, in the same shape `from_project_dictionary` expects.
+        """
+        return {
+            "components": list(self._component_specs),
+            "routes": list(self._route_specs),
+            "tours": list(self._tour_specs),
+            "trains": list(self._train_specs),
+        }

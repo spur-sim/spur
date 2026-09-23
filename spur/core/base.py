@@ -21,17 +21,6 @@ class StatusException(Exception):
     pass
 
 
-class SimLogFilter(logging.Filter):
-    def __init__(self, model, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.model = model
-
-    def filter(self, record) -> bool:
-        record.now = self.model.now
-        record.name = record.name.split(".")[-1]
-        return True
-
-
 class BaseItem(ABC):
     """Abstract base item class for components and agents
 
@@ -55,8 +44,9 @@ class BaseItem(ABC):
 
         # Set base logging information
         self.logger = logging.getLogger(f"{logger.name}.{uid}")
-        # Set simulation logging information
-        self.simLog = logging.getLogger("sim.base")
+        # Set simulation logging information, scoped as a child of the
+        # owning model's own simLog so it shares that model's handlers.
+        self.simLog = logging.getLogger(f"{model.simLog.name}.base")
         self.simLog.debug("I am alive!")
 
     @property
@@ -123,7 +113,7 @@ class BaseComponent(BaseItem, ABC):
         """
         # Acceptance into component means acceptance into collection
         if self.collection is not None:
-            self.collection.accept_agent(agent)
+            self.collection.accept_agent(agent, self)
 
         self._agents[agent.uid] = agent
 
@@ -145,7 +135,7 @@ class BaseComponent(BaseItem, ABC):
         """
         # Release from component means release from collection
         if self.collection is not None:
-            self.collection.release_agent(agent)
+            self.collection.release_agent(agent, self)
 
         self.simLog.debug(f"Releasing agent {agent.uid}")
         self.simLog.debug(f"Current Agents (before release): {self._agents}")
@@ -160,7 +150,7 @@ class BaseComponent(BaseItem, ABC):
             A dictionary contianing the required keys and values describing the component.
         """
 
-        d = self.__dict__
+        d = dict(self.__dict__)
         d.pop("_res", None)
         d.pop("_agents", None)
         d.pop("simLog", None)
@@ -207,7 +197,7 @@ class BaseComponent(BaseItem, ABC):
         if self.collection is None:
             return True
 
-        return self.collection.can_accept_agent(agent)
+        return self.collection.can_accept_agent(agent, self)
 
     @abstractmethod
     def do(self, *args, **kwargs):
@@ -321,15 +311,12 @@ class Agent(BaseItem, ABC):
         self._speed = 0
         self.max_speed = max_speed
         super().__init__(model, uid)
-        self.agentLog = logging.getLogger("agent")
+        # Scoped as a child of the owning model's agent logger, so this
+        # agent's records flow through whatever handler (if any) the model
+        # attached to its own agentLog, without ever sharing a logger with
+        # agents belonging to a different Model instance.
+        self.agentLog = logging.getLogger(f"{model.agentLog.name}.{uid}")
         self.agentLog.setLevel(logging.INFO)
-        # Set up logfile output for agents
-        fh = logging.FileHandler("log/agent.log", mode="w")
-        fh.setLevel(logging.INFO)
-        fh.addFilter(SimLogFilter(model))
-        simFileFormatter = logging.Formatter("%(now)d,%(name)s,%(message)s", style="%")
-        fh.setFormatter(simFileFormatter)
-        self.agentLog.addHandler(fh)
 
     @property
     def speed(self):
@@ -391,13 +378,15 @@ class BaseCollection(BaseItem, ABC):
     def __repr__(self) -> str:
         return f"Collection {self.uid}"
 
-    def can_accept_agent(self, agent: Agent) -> bool:
+    def can_accept_agent(self, agent: Agent, component: Optional[BaseComponent] = None) -> bool:
         """Check if the agent can enter the collection. Returns True by default.
 
         Parameters
         ----------
         agent : Agent
             The agent wanting to enter the collection.
+        component : BaseComponent, optional
+            The component within this collection the agent is requesting.
 
         Returns
         -------
@@ -406,23 +395,27 @@ class BaseCollection(BaseItem, ABC):
         """
         return True
 
-    def accept_agent(self, agent: Agent) -> None:
+    def accept_agent(self, agent: Agent, component: Optional[BaseComponent] = None) -> None:
         """Accept the agent into the collection. Does nothing by default.
 
         Parameters
         ----------
         agent : Agent
             The agent to be accepted into the collection.
+        component : BaseComponent, optional
+            The component within this collection the agent is entering.
         """
         pass
 
-    def release_agent(self, agent: Agent) -> None:
+    def release_agent(self, agent: Agent, component: Optional[BaseComponent] = None) -> None:
         """Release the agent from the collection. Does nothing by default.
 
         Parameters
         ----------
         agent : Agent
             The agent to be released from the collection.
+        component : BaseComponent, optional
+            The component within this collection the agent is leaving.
         """
         pass
 

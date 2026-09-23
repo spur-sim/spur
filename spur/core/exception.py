@@ -19,3 +19,7 @@ class NotUniqueIDError(SpurError):
 
 class InputMismatchError(SpurError):
     """Input files are not consistent with each other or within themselves"""
+
+
+class InvalidProjectDataError(SpurError):
+    """Project data (components, routes, tours, or trains) failed schema validation"""

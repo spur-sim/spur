@@ -8,10 +8,17 @@ Component
 .. automodule:: spur.core.component
    :members:
 
+Event
+######
+.. automodule:: spur.core.event
+   :members:
+
 Exception
 ##########
 .. automodule:: spur.core.exception
    :members:
+
+.. _ref_jitter:
 
 Jitter
 ######

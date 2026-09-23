@@ -10,3 +10,5 @@ We've written this user guide to be as friendly as possible, because one of the 
 
     design
     installation
+    json_specification
+    logging

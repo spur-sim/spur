@@ -22,8 +22,12 @@ setuptools.setup(
         "Intended Audience :: Science/Research",
         "Natural Language :: English",
     ],
-    python_requires=">=3.6",
+    python_requires=">=3.9",
     install_requires=[
         "simpy",
+        "networkx",
+        "scipy",
+        "numpy",
+        "pydantic",
     ],
 )

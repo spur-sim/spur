@@ -1,8 +1,10 @@
 """Contains classes describing tours and tour behaviour."""
 
 import logging
+from typing import Iterator, List, Optional
 
 from spur.core.exception import InputMismatchError
+from spur.core.route import Route, RouteSegment
 
 # Set up module logger
 logger = logging.getLogger(__name__)
@@ -15,17 +17,23 @@ class Tour:
     ----------
     tour_segments : list
         A list of `TourSegment` objects to traverse in order
+    name : str, optional
+        An identifying name for the tour, used when exporting a model's
+        configuration.
     """
 
-    def __init__(self, creation_time, deletion_time) -> None:
+    def __init__(
+        self, creation_time: int, deletion_time: int, name: Optional[str] = None
+    ) -> None:
         self.tour_segments = []
         self.creation_time = creation_time
         self.deletion_time = deletion_time
+        self.name = name
 
-    def __iter__(self):
+    def __iter__(self) -> "Tour":
         return self
 
-    def traverse(self):
+    def traverse(self) -> Iterator[RouteSegment]:
         """Traverse the list of tour segments
 
         This method traverses through sequential `TourSegments` and
@@ -34,14 +42,12 @@ class Tour:
         It also merges the last segment of one route with the first of
         the next route (both of which should be the same).
 
-        Raises
-        ------
-        StopIteration
-            If the tour segments list is empty on traversal
+        Yields nothing and returns immediately if the tour segments list,
+        or the next tour segment's route, is empty.
         """
         if len(self.tour_segments) == 0:
             logger.warn("Trying to traverse an empty list.")
-            raise StopIteration
+            return
 
         tour_segment = self.tour_segments[0]
         route_segment = tour_segment.route.segments[0]
@@ -59,20 +65,20 @@ class Tour:
                 else:
                     # Error checking on empty route segments list for next tour segment
                     logger.warn("The next route in the tour is empty.")
-                    raise StopIteration
+                    return
             yield route_segment
             route_segment = route_segment.next
             tour_segment = tour_segment.next
 
     @property
-    def tour_segments(self):
+    def tour_segments(self) -> List["TourSegment"]:
         return self._tour_segments
 
     @tour_segments.setter
-    def tour_segments(self, tour_segments):
+    def tour_segments(self, tour_segments: List["TourSegment"]) -> None:
         self._tour_segments = tour_segments
 
-    def append(self, route):
+    def append(self, route: Route) -> None:
         """Append a route to the current tour.
 
         Parameters
@@ -100,7 +106,7 @@ class Tour:
         # Store them in a list
         self.tour_segments.append(tour_segment)
 
-    def insert(self, route, idx):
+    def insert(self, route: Route, idx: int) -> None:
         """Insert a route to the current tour.
 
         Parameters
@@ -147,46 +153,52 @@ class TourSegment:
 
     __name__ = "TourSegment"
 
-    def __init__(self, tour, route, prev, next):
+    def __init__(
+        self,
+        tour: Tour,
+        route: Route,
+        prev: Optional["TourSegment"],
+        next: Optional["TourSegment"],
+    ) -> None:
         self.logger = logging.getLogger(
-            f"{logger.name}.{self.__name__}.{route.uids()}"  # TODO: add uid attribute to route
+            f"{logger.name}.{self.__name__}.{route.uids()}"
         )
         self._tour = tour
         self._route = route
         self._prev = prev
         self._next = next
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"TourSegment {self.route.uids()}"
 
     @property
-    def tour(self):
+    def tour(self) -> Tour:
         return self._tour
 
     @tour.setter
-    def tour(self, tour):
+    def tour(self, tour: Tour) -> None:
         self._tour = tour
 
     @property
-    def route(self):
+    def route(self) -> Route:
         return self._route
 
     @route.setter
-    def route(self, route):
+    def route(self, route: Route) -> None:
         self._route = route
 
     @property
-    def prev(self):
+    def prev(self) -> Optional["TourSegment"]:
         return self._prev
-    
+
     @prev.setter
-    def prev(self, prev):
+    def prev(self, prev: Optional["TourSegment"]) -> None:
         self._prev = prev
 
     @property
-    def next(self):
+    def next(self) -> Optional["TourSegment"]:
         return self._next
-    
+
     @next.setter
-    def next(self, next):
+    def next(self, next: Optional["TourSegment"]) -> None:
         self._next = next
