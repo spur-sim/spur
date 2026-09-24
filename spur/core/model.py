@@ -21,39 +21,18 @@ from spur.core.exception import (
     InvalidProjectDataError,
 )
 
+from spur.core.registry import COLLECTION_TYPES, COMPONENT_TYPES, JITTER_TYPES
 from spur.io.formats import read_components_json
 
 # Set up the logging module for errors and debugging
 logger = logging.getLogger(__name__)
 
-# Whitelists of concrete class names that add_components() is allowed to
-# resolve dynamically via importlib. Without this, any name importable
-# into spur.core.component/jitter/collection's namespace would resolve -
-# including abstract bases and unrelated helper classes pulled in via
-# their own `from ... import ...` statements - not just the intended
-# concrete types. When adding a new concrete Component/Jitter/Collection
-# subclass, add its name here too.
-_COMPONENT_TYPES = frozenset(
-    {
-        "TimedTrack",
-        "MultiBlockTrack",
-        "SimpleYard",
-        "SimpleStation",
-        "MultiTrackStation",
-        "TimedStation",
-        "SimpleCrossover",
-    }
-)
-_JITTER_TYPES = frozenset(
-    {
-        "NoJitter",
-        "UniformJitter",
-        "GaussianJitter",
-        "LognormalJitter",
-        "DisruptionJitter",
-    }
-)
-_COLLECTION_TYPES = frozenset({"BlockExclusiveZone"})
+# The concrete class names add_components() may resolve dynamically. They are
+# derived from the classes themselves (see spur.core.registry), so a new
+# concrete component, jitter or collection class needs no entry added here.
+_COMPONENT_TYPES = COMPONENT_TYPES
+_JITTER_TYPES = JITTER_TYPES
+_COLLECTION_TYPES = COLLECTION_TYPES
 
 
 class SimLogFilter(logging.Filter):
@@ -330,6 +309,25 @@ class Model(Environment):
 
     @classmethod
     def from_project_dictionary(cls, project, **model_kwargs):
+        """Build a model from a project dictionary.
+
+        The project is checked with `spur.validation.validate` first, and every
+        error found is reported together in an `InvalidProjectDataError`
+        rather than stopping at the first.
+        """
+        # Imported here, not at the top: spur.validation imports spur.core, whose
+        # package init imports this module, so importing spur.validation first
+        # would otherwise be circular.
+        from spur.validation import validate
+
+        result = validate(project)
+        if not result.valid:
+            problems = "\n".join(
+                f"  {i.path or '(project)'}: {i.message}"
+                for i in result.issues
+                if i.severity == "error"
+            )
+            raise InvalidProjectDataError(f"Invalid project:\n{problems}")
         model = cls(**model_kwargs)
         model.add_components(project["components"])
         model.add_routes_and_tours(project["routes"], project["tours"])
@@ -364,7 +362,7 @@ class Model(Environment):
                 Jitter = getattr(
                     importlib.import_module("spur.core.jitter"), c["jitter"]["type"]
                 )
-                jitter = Jitter(**c["jitter"]["args"])
+                jitter = Jitter(**c["jitter"].get("args", {}))
             else:
                 jitter = NoJitter()
 
@@ -396,7 +394,7 @@ class Model(Environment):
                 c["key"],
                 jitter=jitter,
                 collection=collection,
-                **c["args"],
+                **c.get("args", {}),
             )
 
     def add_routes_and_tours(self, routes, tours):

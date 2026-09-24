@@ -241,3 +241,45 @@ exported back out again with ``model.to_project_dictionary()`` - useful for
 saving a scenario you built or modified in code. The combined ``.spur`` file
 format is read and written with :func:`~spur.io.formats.read_project_json` and
 :func:`~spur.io.formats.write_project_json`.
+
+Checking a project
+--------------------
+
+Building a model stops at the first problem it finds. To check a project without building
+one, and to see *every* problem at once, use :func:`spur.validation.validate`:
+
+.. code-block:: python
+
+    from spur.validation import validate
+
+    result = validate(project)
+    if not result.valid:
+        for issue in result.issues:
+            print(issue.severity, issue.path, issue.message)
+
+Each :class:`~spur.validation.Issue` says where the problem is, for example
+``tours[2].routes[1].args``. Problems are either errors, which make the project invalid,
+or warnings, which are allowed but probably unintended. A project loaded with
+:meth:`~spur.core.model.Model.from_project_dictionary` is checked this way first, and all
+of its errors are reported together.
+
+These are errors:
+
+* a section that is missing or doesn't match the schema (with the path to the bad field);
+* an unknown component, jitter or collection type, or an argument name a component doesn't
+  take or is missing one it requires;
+* two components on the same edge, whichever way round their nodes are written, or two
+  routes, tours or trains with the same name (the later would silently replace the earlier),
+  or a train named like a tour;
+* a route that uses a component that isn't defined, a tour that uses a route that isn't
+  defined, or a train that uses a tour that isn't defined;
+* a route with no components, a tour whose ``args`` list is not the same length as its route,
+  or consecutive routes in a tour that don't share the component where one ends and the next
+  begins.
+
+These are warnings: a tour with no routes (its trains will not move), a component whose
+``departure`` is before its ``arrival``, and a tour whose ``deletion_time`` is not after its
+``creation_time``.
+
+The values of arguments, such as a negative traversal time, are not checked here; a component
+checks those itself when the model is built.
