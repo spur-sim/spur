@@ -26,8 +26,10 @@ class TimedTrack(ResourceComponent):
         The unique component id
     traversal_time : int
         The baseline number of model steps to traverse the component
-    capcity : int
-        The number of agents the component can handlValueErrorime. Defaults to `NoJitter`
+    capacity : int, optional
+        The number of agents the component can hold at once. Defaults to 1
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
     """
 
     __name__ = "TimedTrack"
@@ -75,6 +77,22 @@ class MultiBlockTrack(ResourceComponent):
     This component assigns each train to a track by putting trains travelling in the same
     direction into the same track as close together as possible, in order to maximize the
     track utilization.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    num_tracks : int
+        The number of tracks in parallel inside the component
+    num_blocks : int
+        The number of signal blocks along each track
+    traversal_time : int
+        The baseline number of model steps to traverse the whole component, divided
+        evenly between its blocks
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the base time. Defaults to `NoJitter`
     """
 
     __name__ = "MultiBlockTrack"
@@ -359,7 +377,7 @@ class SimpleYard(ResourceComponent):
         The model controller
     uid : mixed
         The unique component id
-    capcity : int
+    capacity : int
         The number of agents the component can handle
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
@@ -521,8 +539,10 @@ class DynamicDwellStation(ResourceComponent):
 
 
 class MultiTrackStation(ResourceComponent):
-    """
-    With Burr dwell time distribution
+    """A station with several tracks, some for stopping trains and some for bypassing ones.
+
+    Stopping trains dwell for a time drawn from a Burr distribution; bypassing trains
+    pass through in a fixed time.
 
     Attributes
     ----------
@@ -541,7 +561,7 @@ class MultiTrackStation(ResourceComponent):
     dwell_d : float
         The 'd' parameter for the Burr distribution of dwell time
     dwell_loc : float
-        The loc parameter for the Burr distribtuion of dwell time
+        The loc parameter for the Burr distribution of dwell time
     dwell_scale : float
         The scale parameter for the Burr distribution of dwell time
     jitter : `spur.core.jitter.BaseJitter` child, optional
