@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Question or idea
+    url: https://github.com/spur-sim/spur/discussions
+    about: Ask how to model something, or float an idea before it becomes an issue.
+  - name: Problem with the HTTP API service (spur-api)
+    url: https://github.com/spur-sim/spur-api/issues/new/choose
+    about: Endpoints, authentication, the background worker, Docker or the database. Issues about the simulation engine itself belong in this repository.
