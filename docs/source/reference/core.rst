@@ -57,3 +57,15 @@ Analysis
 ########
 .. automodule:: spur.analysis
    :members:
+
+.. _ref_validation:
+
+Validation
+##########
+.. automodule:: spur.validation
+   :members:
+
+Registry
+########
+.. automodule:: spur.core.registry
+   :members:
