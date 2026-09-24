@@ -242,6 +242,28 @@ saving a scenario you built or modified in code. The combined ``.spur`` file
 format is read and written with :func:`~spur.io.formats.read_project_json` and
 :func:`~spur.io.formats.write_project_json`.
 
+Discovering what is available
+------------------------------
+
+The tables above are written by hand. To ask Spur itself which component, jitter and
+collection types exist, and what each takes, use :func:`spur.catalog.catalog`:
+
+.. code-block:: python
+
+    from spur.catalog import catalog
+
+    for component in catalog().components:
+        print(component.name, "-", component.summary)
+        for p in component.parameters:
+            print("   ", p.name, p.type, "required" if p.required else f"default {p.default}")
+
+Each :class:`~spur.catalog.Parameter` has a ``name``, a ``type`` (``integer``, ``number``,
+``string`` or ``boolean``), whether it is ``required``, its ``default`` if it is optional, and a
+``description``. This is what an editor needs to offer the right choices. It is built from the
+code itself (the constructors' signatures and the parameter sections of their docstrings), so
+it always matches what a project can actually use. It is also why every parameter of a
+component must be documented: a test fails if one is not.
+
 Checking a project
 --------------------
 

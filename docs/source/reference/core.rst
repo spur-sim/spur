@@ -69,3 +69,10 @@ Registry
 ########
 .. automodule:: spur.core.registry
    :members:
+
+.. _ref_catalog:
+
+Catalog
+#######
+.. automodule:: spur.catalog
+   :members:

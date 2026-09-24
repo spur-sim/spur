@@ -211,7 +211,7 @@ class DisruptionJitter(BaseJitter):
         p : float
             A value between 0 and 1
         delay : int
-            The perturbation to return if the distruption is triggered.
+            The perturbation to return if the disruption is triggered.
         """
 
         if p > 1.0 or p < 0.0:
