@@ -85,6 +85,9 @@ class BaseComponent(BaseItem, ABC):
     def __init__(self, model, uid, jitter, collection) -> None:
         self._agents = {}
         self._jitter = jitter
+        # Draw jitter from the model's generator so a seeded model is
+        # reproducible.
+        self._jitter.rng = model.rng
         self._collection = collection
         super().__init__(model, uid)
 
@@ -101,6 +104,7 @@ class BaseComponent(BaseItem, ABC):
 
     @jitter.setter
     def jitter(self, j):
+        j.rng = self.model.rng
         self._jitter = j
 
     def accept_agent(self, agent):

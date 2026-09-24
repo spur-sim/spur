@@ -36,6 +36,19 @@ While Spur is designed to support a wide variety of potential applications, one 
 .. note::
     Here's an example: You may have a station component which represents a train station and its interaction with the train as it stops. Typically, the station is designed to hold the train for a certain period of time (say 30 seconds) while the train handles passengers. Passenger loading is notoriously random; the number of passengers and the time they need to board can vary a fair bit. To model this, we apply a "jitter" which adjusts the 30-second baseline by some amount in a random fashion. How that random fashion is chosen is up to you, and can be based on probability distributions or data inputs.
 
+Reproducible runs
+*****************
+
+By default every :class:`~spur.core.model.Model` draws its randomness from fresh operating-system entropy, so two runs of the same project will differ. To get the same result every time, pass a ``seed``:
+
+.. code-block:: python
+
+    model = Model(seed=42)
+
+Given the same project and the same seed, a run produces an identical sequence of events. This covers every source of randomness in the model: all jitter classes, and the dwell time distribution used by :class:`~spur.core.component.MultiTrackStation`. Each model has its own random number generator (``model.rng``), and Spur never touches Python's or NumPy's global random state, so seeding one model does not affect any other model running in the same process, and seeding your own code does not affect the model.
+
+Reproducibility holds for a given version of Spur and its dependencies; a new release may draw random numbers in a different order and so give different results for the same seed. Custom jitter classes should draw from ``self.rng`` (a :class:`numpy.random.Generator`) rather than the global ``random`` module, so that they respect the model's seed.
+
 Plug-In Modularity
 ##################
 
