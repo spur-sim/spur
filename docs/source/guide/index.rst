@@ -12,3 +12,4 @@ We've written this user guide to be as friendly as possible, because one of the 
     installation
     json_specification
     logging
+    analysis

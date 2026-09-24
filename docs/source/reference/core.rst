@@ -50,3 +50,10 @@ Train
 #####
 .. automodule:: spur.core.train
    :members:
+
+.. _ref_analysis:
+
+Analysis
+########
+.. automodule:: spur.analysis
+   :members:
