@@ -134,6 +134,13 @@ class TestValidProjects:
         project = {**SMALL, "type": "SpurProject", "name": "x", "spur_version": "v1"}
         assert validate(project).issues == []
 
+    def test_extensions_are_ignored(self):
+        # Extension data belongs to whichever tool put it there; neither the
+        # validator nor the model looks inside it.
+        project = {**SMALL, "extensions": {"ui": {"nodes": "not even the right shape"}}}
+        assert validate(project).issues == []
+        assert Model.from_project_dictionary(project).to_project_dictionary() == SMALL
+
     def test_component_types_can_be_used_from_json(self):
         # DynamicDwellStation was documented and implemented but could not be
         # named in a project, because the type whitelist was maintained by hand.

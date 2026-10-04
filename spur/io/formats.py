@@ -61,7 +61,13 @@ def read_project_json(filepath: str) -> Dict:
     return project.model_dump(exclude_unset=True)
 
 
-def write_project_json(model, filepath: str, name: str = None, spur_version: str = "v1.0.0") -> None:
+def write_project_json(
+    model,
+    filepath: str,
+    name: str = None,
+    spur_version: str = "v1.0.0",
+    extensions: Dict = None,
+) -> None:
     """Write a `Model`'s configuration to a `.spur` project file.
 
     Parameters
@@ -76,6 +82,10 @@ def write_project_json(model, filepath: str, name: str = None, spur_version: str
         A human-readable name for the project.
     spur_version : str, optional
         The project file format version to record.
+    extensions : dict, optional
+        Extension data to keep with the project - see `ProjectSpec.extensions`.
+        A model doesn't hold any, so pass the ``extensions`` of the project it
+        was built from to write them back out.
     """
     from spur.core.exception import InvalidProjectDataError
 
@@ -85,6 +95,8 @@ def write_project_json(model, filepath: str, name: str = None, spur_version: str
         "spur_version": spur_version,
         **model.to_project_dictionary(),
     }
+    if extensions is not None:
+        project["extensions"] = extensions
     # Validate before writing so a malformed export fails loudly here
     # rather than producing a file that can't be read back.
     try:

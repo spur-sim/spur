@@ -6,7 +6,7 @@ validation errors on malformed input instead of a `KeyError` deep inside
 `Model.add_components`/`add_routes_and_tours`/`add_trains`.
 """
 
-from typing import Dict, List, Literal, Optional
+from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, PositiveInt
 
@@ -74,3 +74,7 @@ class ProjectSpec(BaseModel):
     routes: List[RouteSpec]
     tours: List[TourSpec]
     trains: List[TrainSpec]
+    # Data kept with the project for tools built on spur (an editor's layout,
+    # say), keyed by a namespace of the tool's choosing. Spur checks only that
+    # it is a mapping; it never looks inside, and writes it back unchanged.
+    extensions: Optional[Dict[str, Any]] = None

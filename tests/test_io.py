@@ -87,3 +87,69 @@ class TestProjectFile:
         assert reloaded["routes"] == project["routes"]
         assert reloaded["tours"] == project["tours"]
         assert reloaded["trains"] == project["trains"]
+
+    def test_extensions_survive_a_round_trip_untouched(
+        self,
+        tmp_path,
+        components_json_file,
+        routes_json_file,
+        tours_json_file,
+        trains_json_file,
+    ):
+        m = Model.from_project_dictionary(
+            {
+                "components": read_components_json(components_json_file),
+                "routes": read_routes_json(routes_json_file),
+                "tours": read_tours_json(tours_json_file),
+                "trains": read_trains_json(trains_json_file),
+            }
+        )
+        # Whatever a tool stores is its own business: nesting, lists, nulls.
+        extensions = {
+            "ui": {"version": 1, "nodes": [{"id": "a", "lonlat": [-79.4, 43.7]}]},
+            "other-tool": {"anything": None},
+        }
+
+        out_file = tmp_path / "exported.spur"
+        write_project_json(m, str(out_file), extensions=extensions)
+
+        assert read_project_json(str(out_file))["extensions"] == extensions
+
+    def test_a_project_without_extensions_gains_no_extensions_key(
+        self,
+        tmp_path,
+        components_json_file,
+        routes_json_file,
+        tours_json_file,
+        trains_json_file,
+    ):
+        m = Model.from_project_dictionary(
+            {
+                "components": read_components_json(components_json_file),
+                "routes": read_routes_json(routes_json_file),
+                "tours": read_tours_json(tours_json_file),
+                "trains": read_trains_json(trains_json_file),
+            }
+        )
+        out_file = tmp_path / "exported.spur"
+        write_project_json(m, str(out_file))
+
+        assert "extensions" not in read_project_json(str(out_file))
+
+    def test_extensions_must_be_a_mapping(self, tmp_path):
+        bad_file = tmp_path / "bad.spur"
+        bad_file.write_text(
+            json.dumps(
+                {
+                    "type": "SpurProject",
+                    "spur_version": "v1.0.0",
+                    "components": [],
+                    "routes": [],
+                    "tours": [],
+                    "trains": [],
+                    "extensions": ["not", "a", "mapping"],
+                }
+            )
+        )
+        with pytest.raises(InvalidProjectDataError):
+            read_project_json(str(bad_file))
