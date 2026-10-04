@@ -204,6 +204,35 @@ re-running a whole scenario in one file:
         "trains": [ ... ]
     }
 
+Extension data
+^^^^^^^^^^^^^^^
+
+A project file may also carry an ``extensions`` section, for data that a tool
+built on Spur wants to keep with the project but that the simulation has no use
+for - an editor's node positions, for example:
+
+.. code-block:: javascript
+
+    {
+        "type": "SpurProject",
+        "spur_version": "v1.0.0",
+        "components": [ ... ],
+        "routes": [ ... ],
+        "tours": [ ... ],
+        "trains": [ ... ],
+        "extensions": {
+            "ui": {"nodes": [{"id": "yonge-east", "lonlat": [-79.41, 43.76]}]}
+        }
+    }
+
+Each key under ``extensions`` is a namespace chosen by the tool that owns it,
+and what goes inside is up to that tool. Spur checks only that ``extensions`` is
+an object. It never looks inside: building a model and
+:func:`~spur.validation.validate` both ignore it, and
+:func:`~spur.io.formats.read_project_json` returns it unchanged. A model is built
+from the four sections alone and so doesn't hold extension data; to write it back
+out, pass it to :func:`~spur.io.formats.write_project_json` as ``extensions``.
+
 Loading and saving
 --------------------
 
