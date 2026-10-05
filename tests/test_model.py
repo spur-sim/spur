@@ -35,6 +35,50 @@ class TestModelInitialization:
             toy_model_with_components.add_train(1, 20, r)
 
 
+class TestNullOptionalFields:
+    """A null jitter or collection means the same as leaving the key out."""
+
+    def _project(self, **extra):
+        return {
+            "components": [
+                {
+                    "type": "TimedTrack",
+                    "u": "a",
+                    "v": "b",
+                    "key": "0",
+                    "args": {"traversal_time": 10},
+                    **extra,
+                }
+            ],
+            "routes": [],
+            "tours": [],
+            "trains": [],
+        }
+
+    def test_null_jitter_and_collection_build_as_none(self):
+        model = Model.from_project_dictionary(
+            self._project(jitter=None, collection=None)
+        )
+        without = Model.from_project_dictionary(self._project())
+
+        component = model.components[0]
+        assert type(component._jitter) is type(without.components[0]._jitter)
+        assert component.collection is None
+        assert model.collections == {}
+
+    def test_null_fields_survive_a_schema_round_trip(self):
+        from spur.io.schema import ProjectSpec
+
+        # As the schema writes a component with neither: both keys, both null.
+        dumped = ProjectSpec(
+            type="SpurProject", spur_version="v1.0.0", **self._project()
+        ).model_dump()
+        assert dumped["components"][0]["jitter"] is None
+
+        model = Model.from_project_dictionary(dumped)
+        assert len(model.components) == 1
+
+
 class TestLogCurrentState:
     def test_logs_location_for_trains_in_progress(self, tmp_path):
         agent_log = tmp_path / "agent.log"

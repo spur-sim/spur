@@ -353,8 +353,10 @@ class Model(Environment):
             component = getattr(
                 importlib.import_module("spur.core.component"), c["type"]
             )
-            # Check jitter separately.
-            if "jitter" in c.keys():
+            # Check jitter separately. A null jitter is no jitter, the same
+            # as leaving the key out: the schema writes one for a component
+            # that has none.
+            if c.get("jitter") is not None:
                 if c["jitter"]["type"] not in _JITTER_TYPES:
                     raise InvalidProjectDataError(
                         f"Unknown jitter type '{c['jitter']['type']}'"
@@ -366,8 +368,9 @@ class Model(Environment):
             else:
                 jitter = NoJitter()
 
-            # Check if component belongs to a collection
-            if "collection" in c.keys():
+            # Check if component belongs to a collection (likewise, a null
+            # collection is none)
+            if c.get("collection") is not None:
                 collection_id = f"{c['collection']['type']}-{c['collection']['key']}"
                 if collection_id in self.collections:
                     # If collection instance has already been created, look it up
