@@ -33,6 +33,7 @@ class TimedTrack(ResourceComponent):
     """
 
     __name__ = "TimedTrack"
+    tags = ("general",)
 
     def __init__(
         self, model, uid, traversal_time, capacity=1, jitter=NoJitter(), collection=None
@@ -96,6 +97,7 @@ class MultiBlockTrack(ResourceComponent):
     """
 
     __name__ = "MultiBlockTrack"
+    tags = ("urban", "line")
 
     def __init__(
         self,
@@ -385,6 +387,7 @@ class SimpleYard(ResourceComponent):
     """
 
     __name__ = "SimpleYard"
+    tags = ("line",)
 
     def __init__(
         self, model, uid, capacity, jitter=NoJitter(), collection=None
@@ -432,6 +435,7 @@ class SimpleStation(ResourceComponent):
     """
 
     __name__ = "SimpleStation"
+    tags = ("general",)
 
     def __init__(
         self,
@@ -495,6 +499,7 @@ class DynamicDwellStation(ResourceComponent):
     """
 
     __name__ = "DynamicDwellStation"
+    tags = ("urban",)
 
     def __init__(
         self,
@@ -571,6 +576,7 @@ class MultiTrackStation(ResourceComponent):
     """
 
     __name__ = "MultiTrackStation"
+    tags = ("urban", "line")
 
     def __init__(
         self,
@@ -710,6 +716,7 @@ class TimedStation(ResourceComponent):
     """
 
     __name__ = "TimedStation"
+    tags = ("general",)
 
     def __init__(
         self,
@@ -771,6 +778,7 @@ class SimpleCrossover(ResourceComponent):
     """
 
     __name__ = "SimpleCrossover"
+    tags = ("general",)
 
     def __init__(
         self, model, uid, traversal_time, jitter=NoJitter(), collection=None

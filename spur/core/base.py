@@ -6,7 +6,7 @@ Base classes of Spur's component types.
 
 import logging
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, List, Optional
+from typing import TYPE_CHECKING, List, Optional, Tuple
 
 from simpy.core import BoundClass, Environment
 from simpy.resources.resource import Resource, Request, Release
@@ -81,6 +81,11 @@ class BaseComponent(BaseItem, ABC):
     """
 
     __name__ = "BaseComponent"
+
+    # What the component suits, for an editor to filter by: "general", "urban"
+    # (light rail, small networks) or "line" (long lines, whole subdivisions).
+    # A component may carry several. Nothing in the simulation reads them.
+    tags: Tuple[str, ...] = ()
 
     def __init__(self, model, uid, jitter, collection) -> None:
         self._agents = {}

@@ -176,3 +176,17 @@ class TestAgainstTheValidatorAndTheEngine:
                 assert any(
                     f"Missing required argument '{p.name}'" in i.message for i in result.issues
                 ), (t.name, p.name)
+
+
+class TestTags:
+    def test_every_component_is_tagged(self):
+        for info in catalog().components:
+            assert info.tags, info.name
+
+    def test_tags_are_from_the_known_set(self):
+        for info in catalog().components:
+            assert set(info.tags) <= {"general", "urban", "line"}, info.name
+
+    def test_jitters_and_collections_are_untagged(self):
+        c = catalog()
+        assert all(not t.tags for t in c.jitters + c.collections)
