@@ -56,6 +56,9 @@ class TypeInfo(BaseModel):
 
     name: str
     summary: str
+    # What a component suits ("general", "urban", "line"); empty for jitters and
+    # collections, which are not tagged.
+    tags: List[str] = []
     parameters: List[Parameter]
 
 
@@ -117,7 +120,12 @@ def _type_info(name: str, cls: type, skip: Sequence[str]) -> TypeInfo:
                 description=description,
             )
         )
-    return TypeInfo(name=name, summary=_summary(cls), parameters=parameters)
+    return TypeInfo(
+        name=name,
+        summary=_summary(cls),
+        tags=list(getattr(cls, "tags", ())),
+        parameters=parameters,
+    )
 
 
 def catalog() -> Catalog:
