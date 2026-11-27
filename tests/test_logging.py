@@ -65,3 +65,18 @@ def test_model_without_log_files_writes_nothing(tmp_path, monkeypatch):
 
     assert not (tmp_path / "log").exists()
     assert m.agentLog.handlers == []
+
+
+def test_closing_a_model_lets_go_of_its_loggers():
+    import logging
+
+    from spur.core import Model
+    from spur.core.component import TimedTrack
+
+    registry = logging.Logger.manager.loggerDict
+    before = len(registry)
+    m = Model()
+    m._add_component(TimedTrack, "1", "2", "A", traversal_time=10)
+    assert len(registry) > before
+    m.close()
+    assert not [name for name in registry if m.uid in name]

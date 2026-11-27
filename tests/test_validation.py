@@ -379,6 +379,7 @@ class TestRegistry:
         assert {
             "TimedTrack", "MultiBlockTrack", "SimpleYard", "SimpleStation",
             "MultiTrackStation", "TimedStation", "SimpleCrossover", "DynamicDwellStation",
+            "HeadwayDwellStation",
         } == COMPONENT_TYPES
         assert {
             "NoJitter", "UniformJitter", "GaussianJitter", "LognormalJitter", "DisruptionJitter",

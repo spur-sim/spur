@@ -16,6 +16,97 @@ from spur.core.exception import NotPositiveError
 _CLEARING = type("Clearing", (), {"__repr__": lambda self: "<clearing>"})()
 
 
+def travel_direction(component, train) -> int:
+    """Which way a train crosses a component: 1 from node u to v, -1 from v to u.
+
+    Worked out from the components before and after this one in the train's
+    tour, so it must be called before the train has been transferred to
+    `component` (its current segment is still the one before).
+
+    Parameters
+    ----------
+    component : `spur.core.base.BaseComponent`
+        The component the train is about to enter
+    train : Any child of `Agent` class
+        The train about to enter it
+
+    Returns
+    -------
+    int
+        1 if the train travels from u to v, -1 if from v to u
+    """
+    # When this is called, the current_segment of the train still points to the segment before this one,
+    # so it is already the "prev" we want, and the "next" is current_segment's next-next
+    if train.current_segment is None:
+        # The train has not entered anything yet: this is the first component
+        # of its tour, and the one after it says which way it is going.
+        try:
+            first = train.tour.tour_segments[0].route.segments[0]
+            next_c = first.next.component if first.next is not None else None
+        except (AttributeError, IndexError):
+            next_c = None
+        return direction_between(component, None, next_c)
+    prev_c = train.current_segment.component
+    try:
+        next_c = train.current_segment.next.next.component
+    except AttributeError:
+        next_c = None
+    return direction_between(component, prev_c, next_c)
+
+
+def direction_between(component, prev_c, next_c) -> int:
+    """Which way a train crosses a component, given the components it comes from
+    and goes to (either may be None): 1 from node u to v, -1 from v to u.
+
+    Parameters
+    ----------
+    component : `spur.core.base.BaseComponent`
+        The component crossed
+    prev_c : `spur.core.base.BaseComponent` or None
+        The component the train comes from
+    next_c : `spur.core.base.BaseComponent` or None
+        The component the train goes to
+
+    Returns
+    -------
+    int
+        1 if the train travels from u to v, -1 if from v to u
+    """
+    c_dict = component.model.component_dictionary()
+    u = c_dict[component.uid]["u"]
+    v = c_dict[component.uid]["v"]
+    prev_u, prev_v = (c_dict[prev_c.uid]["u"], c_dict[prev_c.uid]["v"]) if prev_c else (None, None)
+    next_u, next_v = (c_dict[next_c.uid]["u"], c_dict[next_c.uid]["v"]) if next_c else (None, None)
+
+    if prev_c is not None and next_c is not None:
+        # If node u is shared between current component and previous,
+        # and node v is shared between current component and next
+        if u in [prev_u, prev_v] and v in [next_u, next_v]:
+            # Direction is from u to v
+            return 1
+        # If node v is shared between current component and previous,
+        # and node u is shared between current component and next
+        elif v in [prev_u, prev_v] and u in [next_u, next_v]:
+            # Direction is from v to u
+            return -1
+
+    # If this is the first segment of the train, only look at the next segment
+    if prev_c is None:
+        if v in [next_u, next_v]:
+            return 1
+        elif u in [next_u, next_v]:
+            return -1
+
+    # If this is the last segment of the train, only look at the previous segment
+    if next_c is None:
+        if u in [prev_u, prev_v]:
+            return 1
+        elif v in [prev_u, prev_v]:
+            return -1
+
+    raise Exception("Error getting travel direction")
+
+
 class TimedTrack(ResourceComponent):
     """A timed traversal component.
 
@@ -88,6 +179,14 @@ class MultiBlockTrack(ResourceComponent):
     direction into the same track as close together as possible, in order to maximize the
     track utilization.
 
+    A track normally takes whichever direction its first train is travelling, and is free
+    to take the other once it empties. With ``directional`` set, each track is instead
+    kept to one direction for good (even-numbered tracks from u to v, odd-numbered from
+    v to u), as on ordinary double track.
+
+    Jitter is drawn once for each train's traversal of the whole component and shared
+    evenly between its blocks.
+
     Attributes
     ----------
     model : `spur.core.model.Model`
@@ -101,6 +200,15 @@ class MultiBlockTrack(ResourceComponent):
     traversal_time : int
         The baseline number of model steps to traverse the whole component, divided
         evenly between its blocks
+    directional : bool, optional
+        Whether each track is kept to one direction: even-numbered tracks from u to
+        v, odd-numbered from v to u. Defaults to False
+    traversal_time_vu : int, optional
+        The baseline number of model steps to traverse the whole component from v
+        to u, where that differs (on a gradient, say). Defaults to ``traversal_time``
+    jitter_scale_vu : float, optional
+        What the jitter is multiplied by for a train travelling from v to u, where
+        one direction's times vary more than the other's. Defaults to 1
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
     clearance_time : int, optional
@@ -120,14 +228,26 @@ class MultiBlockTrack(ResourceComponent):
         num_tracks: int,
         num_blocks: int,
         traversal_time,
+        directional: bool = False,
+        traversal_time_vu: Optional[int] = None,
+        jitter_scale_vu: float = 1.0,
         jitter=NoJitter(),
         collection=None,
         clearance_time=0,
     ) -> None:
         if num_tracks <= 0 or num_blocks <= 0:
             raise ValueError("Number of tracks and blocks must both be positive")
+        if jitter_scale_vu < 0:
+            raise ValueError("Jitter scale must be nonnegative")
+        self._jitter_scales = {1: 1.0, -1: jitter_scale_vu}
         self._num_tracks = num_tracks
         self._num_blocks = num_blocks
+        self._directional = directional
+        # Keyed by direction of travel: 1 from u to v, -1 from v to u
+        self._traversal_times = {
+            1: traversal_time,
+            -1: traversal_time if traversal_time_vu is None else traversal_time_vu,
+        }
         self._block_traversal_time = int(
             math.ceil(traversal_time / num_blocks)
         )  # Round up to integer
@@ -142,7 +262,10 @@ class MultiBlockTrack(ResourceComponent):
 
         # Record the travel direction of each track as 1 or -1, or None if track empty
         self._track_directions: list[Optional[int]] = [None] * num_tracks
+        if directional:
+            self._track_directions = [1 if t % 2 == 0 else -1 for t in range(num_tracks)]
         self._track_assignments = dict()
+        # The time each train will take in each block, set when it enters
         self._train_waiting_events = (
             dict()
         )  # Store SimPy events used to handle wait-queueing of trains between blocks
@@ -154,54 +277,7 @@ class MultiBlockTrack(ResourceComponent):
         )
 
     def _get_travel_direction(self, train) -> int:
-        c_dict = self._model.component_dictionary()
-        u = c_dict[self._uid]["u"]
-        v = c_dict[self._uid]["v"]
-
-        # When this method is called, the current_segment of the train still points to the segment before this one,
-        # so it is already the "prev" we want
-        try:
-            prev_c = train.current_segment.component
-            prev_u = c_dict[prev_c.uid]["u"]
-            prev_v = c_dict[prev_c.uid]["v"]
-        except AttributeError:
-            prev_c, prev_u, prev_v = None, None, None
-
-        # The "next" we want is the segment after this one, so it is current_segment's next-next
-        try:
-            next_c = train.current_segment.next.next.component
-            next_u = c_dict[next_c.uid]["u"]
-            next_v = c_dict[next_c.uid]["v"]
-        except AttributeError:
-            next_c, next_u, next_v = None, None, None
-
-        if prev_c is not None and next_c is not None:
-            # If node u is shared between current component and previous,
-            # and node v is shared between current component and next
-            if u in [prev_u, prev_v] and v in [next_u, next_v]:
-                # Direction is from u to v
-                return 1
-            # If node v is shared between current component and previous,
-            # and node u is shared between current component and next
-            elif v in [prev_u, prev_v] and u in [next_u, next_v]:
-                # Direction is from v to u
-                return -1
-
-        # If this is the first segment of the train, only look at the next segment
-        if prev_c is None:
-            if v in [next_u, next_v]:
-                return 1
-            elif u in [next_u, next_v]:
-                return -1
-
-        # If this is the last segment of the train, only look at the previous segment
-        if next_c is None:
-            if u in [prev_u, prev_v]:
-                return 1
-            elif v in [prev_u, prev_v]:
-                return -1
-
-        raise Exception("Error getting travel direction")
+        return travel_direction(self, train)
 
     def _iterate_track_blocks(self, track: int, direction: int):
         if direction == 1:
@@ -266,7 +342,8 @@ class MultiBlockTrack(ResourceComponent):
 
         def free():
             self._blocks[track][block] = None
-            if self._blocks[track].count(None) == len(self._blocks[track]):
+            # An empty track is free to take either direction, unless it keeps its own
+            if not self._directional and self._blocks[track].count(None) == len(self._blocks[track]):
                 self._track_directions[track] = None
             start = 0 if direction == 1 else self._num_blocks - 1
             if block == start:
@@ -340,9 +417,22 @@ class MultiBlockTrack(ResourceComponent):
         # Otherwise, do not accept the train
         return False
 
+    def _draw_block_times(self, direction: int = 1) -> list:
+        """The time to spend in each block for one traversal in a direction.
+
+        Jitter is drawn once for the traversal, so the spread of the whole
+        component's traversal time is the jitter's own, however many blocks
+        it is divided into. The whole-step times add up to the total.
+        """
+        jitter = self._jitter.jitter() * self._jitter_scales[direction]
+        total = max(0, round(self._traversal_times[direction] + jitter))
+        each, extra = divmod(total, self._num_blocks)
+        return [each + (1 if b < extra else 0) for b in range(self._num_blocks)]
+
     def do(self, train):
         assigned_track = self._track_assignments[train.uid]
         direction = self._track_directions[assigned_track]
+        block_times = iter(self._draw_block_times(direction))
 
         if direction == 1:
             start = 0
@@ -355,13 +445,8 @@ class MultiBlockTrack(ResourceComponent):
 
         # Traverse through each block along the assigned track
         for b in range(start, end, direction):
-            # Wait to traverse the individual block (with the overall jitter divided by the number of blocks)
-            yield self._model.timeout(
-                round(
-                    self._block_traversal_time
-                    + self._jitter.jitter() / self._num_blocks
-                )
-            )
+            # Wait to traverse the individual block
+            yield self._model.timeout(next(block_times))
 
             if b != last:
                 # If next block is occupied, sleep until woken up
@@ -560,11 +645,221 @@ class DynamicDwellStation(ResourceComponent):
         self._last_departure = self.model.now
 
 
+class HeadwayDwellStation(ResourceComponent):
+    """A two-track station, one track for each direction, whose dwell time grows
+    with the time since the previous train in the same direction.
+
+    Passengers are taken to arrive at a steady rate, so the number boarding and
+    alighting is each rate multiplied by the headway: the time since the previous
+    train travelling the same way arrived at the station. Dwell time is then
+    ``intercept + boarding_time * boarding_rate * headway + alighting_time *
+    alighting_rate * headway + jitter``, and never less than zero. The first
+    train in a direction has no headway and dwells for ``first_dwell``.
+
+    Each direction has its own track, its own values, and its own record of the
+    previous train: values ending ``_uv`` are for trains travelling from node u
+    to node v, and ``_vu`` for trains from v to u. A ``_vu`` value left out is
+    taken to be the same as its ``_uv`` counterpart.
+
+    A direction may be set not to stop, for a station with a platform on one
+    track only. Trains in that direction run through in ``pass_time``.
+
+    One train may be in the station in each direction at a time. After a train
+    leaves, its track stays closed to the next train for ``clearance_time``: the
+    time the departing train takes to clear the platform and the signal behind
+    it to clear.
+
+    .. warning::
+        The rates are per model time step, and the times in model time steps,
+        so this component is only reasonable if a step is a short, fixed
+        length of time such as a second.
+
+    Attributes
+    ----------
+    model : `spur.core.model.Model`
+        The model controller
+    uid : mixed
+        The unique component id
+    intercept_uv : float
+        The dwell time that does not depend on passengers (doors opening and
+        closing, say), for trains from u to v
+    boarding_rate_uv : float, optional
+        Passengers arriving to board trains from u to v, per model time step.
+        Defaults to 0
+    boarding_time_uv : float, optional
+        Dwell time added by each boarding passenger, for trains from u to v.
+        Defaults to 0
+    alighting_rate_uv : float, optional
+        Passengers alighting from trains from u to v, per model time step of
+        headway. Defaults to 0
+    alighting_time_uv : float, optional
+        Dwell time added by each alighting passenger, for trains from u to v.
+        Defaults to 0
+    first_dwell_uv : float, optional
+        The dwell time of the first train from u to v. Defaults to the intercept
+    stops_uv : bool, optional
+        Whether trains from u to v stop. Defaults to True
+    intercept_vu : float, optional
+        As ``intercept_uv``, for trains from v to u. Defaults to ``intercept_uv``
+    boarding_rate_vu : float, optional
+        As ``boarding_rate_uv``, for trains from v to u. Defaults to
+        ``boarding_rate_uv``
+    boarding_time_vu : float, optional
+        As ``boarding_time_uv``, for trains from v to u. Defaults to
+        ``boarding_time_uv``
+    alighting_rate_vu : float, optional
+        As ``alighting_rate_uv``, for trains from v to u. Defaults to
+        ``alighting_rate_uv``
+    alighting_time_vu : float, optional
+        As ``alighting_time_uv``, for trains from v to u. Defaults to
+        ``alighting_time_uv``
+    first_dwell_vu : float, optional
+        The dwell time of the first train from v to u. Defaults to that
+        direction's intercept
+    stops_vu : bool, optional
+        Whether trains from v to u stop. Defaults to True
+    pass_time : int, optional
+        The time a train that does not stop takes to run through. Defaults to 0
+    max_dwell : float, optional
+        The longest a train may dwell, before jitter. Defaults to no limit
+    clearance_time : int, optional
+        How long after a train leaves before the next in the same direction
+        may enter. Defaults to 0
+    jitter : `spur.core.jitter.BaseJitter` child, optional
+        The Jitter object used to perturb the dwell time. Defaults to `NoJitter`
+    collection : The `spur.core.collection.Collection`, optional
+        The Collection object the component is a part of. Defaults to None.
+    """
+
+    __name__ = "HeadwayDwellStation"
+    tags = ("urban", "line")
+    _holds_own_places = True
+
+    def __init__(
+        self,
+        model,
+        uid,
+        intercept_uv: float,
+        boarding_rate_uv: float = 0.0,
+        boarding_time_uv: float = 0.0,
+        alighting_rate_uv: float = 0.0,
+        alighting_time_uv: float = 0.0,
+        first_dwell_uv: Optional[float] = None,
+        stops_uv: bool = True,
+        intercept_vu: Optional[float] = None,
+        boarding_rate_vu: Optional[float] = None,
+        boarding_time_vu: Optional[float] = None,
+        alighting_rate_vu: Optional[float] = None,
+        alighting_time_vu: Optional[float] = None,
+        first_dwell_vu: Optional[float] = None,
+        stops_vu: bool = True,
+        pass_time: int = 0,
+        max_dwell: Optional[float] = None,
+        jitter=NoJitter(),
+        collection=None,
+        clearance_time: int = 0,
+    ) -> None:
+        def same(value, default):
+            return default if value is None else value
+
+        uv = {
+            "intercept": intercept_uv,
+            "boarding_rate": boarding_rate_uv,
+            "boarding_time": boarding_time_uv,
+            "alighting_rate": alighting_rate_uv,
+            "alighting_time": alighting_time_uv,
+        }
+        vu = {
+            "intercept": same(intercept_vu, intercept_uv),
+            "boarding_rate": same(boarding_rate_vu, boarding_rate_uv),
+            "boarding_time": same(boarding_time_vu, boarding_time_uv),
+            "alighting_rate": same(alighting_rate_vu, alighting_rate_uv),
+            "alighting_time": same(alighting_time_vu, alighting_time_uv),
+        }
+        for values in (uv, vu):
+            if any(value < 0 for value in values.values()):
+                raise ValueError("Dwell time values must be nonnegative")
+        if pass_time < 0:
+            raise ValueError("Pass time must be nonnegative")
+        if max_dwell is not None and max_dwell < 0:
+            raise ValueError("Maximum dwell must be nonnegative")
+        uv["first_dwell"] = same(first_dwell_uv, uv["intercept"])
+        vu["first_dwell"] = same(first_dwell_vu, vu["intercept"])
+        uv["stops"], vu["stops"] = stops_uv, stops_vu
+
+        # Keyed by direction of travel: 1 from u to v, -1 from v to u
+        self._values = {1: uv, -1: vu}
+        self._occupant: dict = {1: None, -1: None}
+        self._previous_arrival: dict = {1: None, -1: None}
+        self._directions: dict = dict()
+        self._pass_time = pass_time
+        self._max_dwell = max_dwell
+
+        resource = SpurResource(model, self, capacity=2)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
+        # Override the simulation logging information
+        self.simLog = logging.getLogger(
+            f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
+        )
+
+    def can_accept_agent(self, agent: Agent) -> bool:
+        # If the component's collection cannot accept agent, reject the agent outright
+        if not super().can_accept_agent(agent):
+            return False
+        return self._occupant[travel_direction(self, agent)] is None
+
+    def accept_agent(self, agent: Agent):
+        direction = travel_direction(self, agent)
+        self._occupant[direction] = agent
+        self._directions[agent.uid] = direction
+        super().accept_agent(agent)
+
+    def release_agent(self, agent: Agent):
+        direction = self._directions.pop(agent.uid)
+        # The track stays closed to the next train until it has cleared
+        self._occupant[direction] = _CLEARING
+
+        def free():
+            self._occupant[direction] = None
+
+        self._after_clearance(free)
+        return super().release_agent(agent)
+
+    def do(self, train):
+        direction = self._directions[train.uid]
+        values = self._values[direction]
+        if not values["stops"]:
+            yield self.model.timeout(self._pass_time)
+            return
+
+        previous = self._previous_arrival[direction]
+        self._previous_arrival[direction] = self.model.now
+        if previous is None:
+            dwell = values["first_dwell"]
+        else:
+            headway = self.model.now - previous
+            dwell = (
+                values["intercept"]
+                + values["boarding_time"] * values["boarding_rate"] * headway
+                + values["alighting_time"] * values["alighting_rate"] * headway
+            )
+        if self._max_dwell is not None:
+            dwell = min(dwell, self._max_dwell)
+        dwell = max(0, round(dwell + self._jitter.jitter()))
+        self.simLog.debug(f"Direction {direction}, dwell {dwell}")
+        yield self.model.timeout(dwell)
+
+
 class MultiTrackStation(ResourceComponent):
     """A station with several tracks, some for stopping trains and some for bypassing ones.
 
     Stopping trains dwell for a time drawn from a Burr distribution; bypassing trains
     pass through in a fixed time.
+
+    A track normally takes a train going either way. With ``directional`` set, each
+    track is kept to one direction, stopping and bypass tracks alike: even-numbered
+    tracks for trains from u to v, odd-numbered for trains from v to u, as at a
+    station on ordinary double track.
 
     Attributes
     ----------
@@ -586,6 +881,9 @@ class MultiTrackStation(ResourceComponent):
         The loc parameter for the Burr distribution of dwell time
     dwell_scale : float
         The scale parameter for the Burr distribution of dwell time
+    directional : bool, optional
+        Whether each track is kept to one direction: even-numbered tracks from u to
+        v, odd-numbered from v to u. Defaults to False
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
     collection : The `spur.core.collection.Collection`, optional
@@ -611,12 +909,14 @@ class MultiTrackStation(ResourceComponent):
         dwell_d: float,
         dwell_loc: float,
         dwell_scale: float,
+        directional: bool = False,
         jitter=NoJitter(),
         collection=None,
         clearance_time=0,
     ) -> None:
         self._bypass_time = bypass_time
         self._dwell_params = (dwell_c, dwell_d, dwell_loc, dwell_scale)
+        self._directional = directional
 
         self._stopping_tracks: list[Optional[Agent]] = [None] * num_stopping_tracks
         self._bypass_tracks: list[Optional[Agent]] = [None] * num_bypass_tracks
@@ -657,10 +957,24 @@ class MultiTrackStation(ResourceComponent):
                 # If this is the first component to be visited by the train, can use any track
                 return False
 
+    def _direction(self, agent: Agent) -> Optional[int]:
+        """The way `agent` is about to cross the station (1 from u to v, -1 from v
+        to u), or None if any track will do."""
+        return travel_direction(self, agent) if self._directional else None
+
+    @staticmethod
+    def _free(tracks: list, direction: Optional[int]) -> list:
+        """The free tracks in `tracks` a train going `direction` may use."""
+        return [
+            t for t, occupant in enumerate(tracks)
+            if occupant is None and (direction is None or (1 if t % 2 == 0 else -1) == direction)
+        ]
+
     def accept_agent(self, agent: Agent):
+        direction = self._direction(agent)
         # If train is bypassing, first check if there is an available bypass track
         if not self._train_is_stopping(agent, current=False):
-            for t in range(len(self._bypass_tracks)):
+            for t in self._free(self._bypass_tracks, direction):
                 if self._bypass_tracks[t] is None:
                     self._bypass_tracks[t] = agent
                     self._track_assignments[agent.uid] = f"B-{t}"
@@ -669,7 +983,7 @@ class MultiTrackStation(ResourceComponent):
         # If train does not have an assigned track by this point, either it is stopping,
         # or it is bypassing and there is no available bypass track -> try to assign to a stopping track
         if agent.uid not in self._track_assignments:
-            for t in range(len(self._stopping_tracks)):
+            for t in self._free(self._stopping_tracks, direction):
                 if self._stopping_tracks[t] is None:
                     self._stopping_tracks[t] = agent
                     self._track_assignments[agent.uid] = f"S-{t}"
@@ -703,13 +1017,15 @@ class MultiTrackStation(ResourceComponent):
         if not super().can_accept_agent(agent):
             return False
 
+        direction = self._direction(agent)
+        stopping = self._free(self._stopping_tracks, direction)
         if self._train_is_stopping(agent, current=False):
             # If train is stopping and there is at least one free stopping track, accept the train
-            if self._stopping_tracks.count(None) > 0:
+            if stopping:
                 return True
         else:
             # If train is bypassing and there is at least one free track of either type, accept the train
-            if self._bypass_tracks.count(None) + self._stopping_tracks.count(None) > 0:
+            if stopping or self._free(self._bypass_tracks, direction):
                 return True
 
         return False
