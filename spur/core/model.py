@@ -97,6 +97,7 @@ class Model(Environment):
         # streaming events to a consumer as they're emitted) called once
         # per event, in the same order they're appended to `self.events`.
         self.events: List[SimEvent] = []
+        self._component_dictionary = None
         self._event_sink = event_sink
         self._tours = {}  # Used as a container to keep track of possible tours
         self._collections = {}  # Used as a container to keep track of all collections
@@ -208,10 +209,31 @@ class Model(Environment):
             return True
 
     def component_dictionary(self):
-        d_out = dict()
-        for u, v, d in self.G.edges(data=True):
-            d_out[d["c"].uid] = {"c": d["c"], "u": u, "v": v}
-        return d_out
+        # Components ask for this each time a train wants to enter, so it is
+        # built once and kept until a component is added.
+        if self._component_dictionary is None:
+            d_out = dict()
+            for u, v, d in self.G.edges(data=True):
+                d_out[d["c"].uid] = {"c": d["c"], "u": u, "v": v}
+            self._component_dictionary = d_out
+        return self._component_dictionary
+
+    def close(self):
+        """Let go of this model's loggers.
+
+        Python keeps every logger ever asked for, and a model asks for one for
+        itself and each of its trains and components, under its own name. A
+        process that builds model after model would otherwise grow without
+        limit. Call this when a model is finished with; it cannot log after.
+        """
+        scopes = (self.simLog.name, self.agentLog.name)
+        for log in (self.simLog, self.agentLog):
+            for handler in list(log.handlers):
+                log.removeHandler(handler)
+                handler.close()
+        registry = logging.Logger.manager.loggerDict
+        for name in [n for n in registry if n in scopes or n.startswith(tuple(f"{s}." for s in scopes))]:
+            del registry[name]
 
     def _add_component(self, component_type, u, v, key, *args, **kwargs):
         """Add a component to the model network
@@ -232,6 +254,7 @@ class Model(Environment):
         c = component_type(self, f"{u}-{v}-{key}", *args, **kwargs)
         # Add it to the graph
         self.G.add_edge(u, v, key=key, c=c)
+        self._component_dictionary = None
         self.simLog.debug(f"Added {c.__name__} {c.uid}")
         return c
 

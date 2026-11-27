@@ -73,11 +73,12 @@ Component types and their ``args``
 Type                    ``args``
 ======================= ================================================================================================================================================================================================
 ``TimedTrack``          ``traversal_time`` (int), ``capacity`` (int, default 1)
-``MultiBlockTrack``     ``num_tracks`` (int), ``num_blocks`` (int), ``traversal_time`` (int)
+``MultiBlockTrack``     ``num_tracks`` (int), ``num_blocks`` (int), ``traversal_time`` (int), ``directional`` (bool, default false), ``traversal_time_vu`` (int, optional), ``jitter_scale_vu`` (float, default 1)
 ``SimpleYard``          ``capacity`` (int)
 ``SimpleStation``       ``mean_boarding`` (int), ``mean_alighting`` (int) - dwell time from the San2016 boarding/alighting formula
 ``DynamicDwellStation`` ``mean_arrival_rate`` (float), ``coefficient_a`` (float), ``coefficient_b`` (float) - dwell scales with passenger demand accumulated since the previous departure
-``MultiTrackStation``   ``num_stopping_tracks`` (int), ``num_bypass_tracks`` (int), ``bypass_time`` (int), ``dwell_c``, ``dwell_d``, ``dwell_loc``, ``dwell_scale`` (floats - Burr-distributed dwell time parameters)
+``HeadwayDwellStation`` ``intercept_uv`` (float), then optional ``boarding_rate``, ``boarding_time``, ``alighting_rate``, ``alighting_time``, ``first_dwell``, ``stops`` each ending ``_uv`` or ``_vu``, ``pass_time``, ``max_dwell``, ``clearance_time``
+``MultiTrackStation``   ``num_stopping_tracks`` (int), ``num_bypass_tracks`` (int), ``bypass_time`` (int), ``dwell_c``, ``dwell_d``, ``dwell_loc``, ``dwell_scale`` (floats - Burr-distributed dwell time parameters), ``directional`` (bool, default false)
 ``TimedStation``        ``traversal_time`` (int) - a fixed-time dwell, no boarding/alighting model
 ``SimpleCrossover``     ``traversal_time`` (int)
 ======================= ================================================================================================================================================================================================
