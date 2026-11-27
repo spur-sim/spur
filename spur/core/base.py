@@ -290,7 +290,15 @@ class SpurResource(Resource):
         request = BoundClass(SpurRequest)
         release = BoundClass(Release)
 
-    def _do_put(self, event: SpurRequest) -> None:
+    def _do_put(self, event: SpurRequest) -> bool:
+        """Try to grant `event`, and say whether SimPy should try the next request.
+
+        SimPy works down the queue until this returns False. While a slot is
+        free, a request the component refuses (for example, a train held out
+        of a BlockExclusiveZone) must not hide the requests behind it, or a
+        train already inside the zone can wait behind one held out of it,
+        and the two wait on each other for good.
+        """
         if len(self.users) < self.capacity and self._component.can_accept_agent(
             event.agent
         ):
@@ -298,6 +306,7 @@ class SpurResource(Resource):
             self._component.accept_agent(event.agent)
             event.usage_since = self._env.now
             event.succeed()
+        return len(self.users) < self.capacity
 
     def process_queue(self) -> None:
         """Explicitly trigger the processing of the wait queue of trains wanting to use the resource,

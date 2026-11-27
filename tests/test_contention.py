@@ -95,13 +95,7 @@ class TestBlockExclusiveZone:
         for i in range(num_trains):
             # Each train gets its own entry component with a staggered
             # traversal time, so trains reach the zone at distinct
-            # simulated ticks rather than simultaneously. This sidesteps a
-            # SimPy quirk where, of several puts arriving at the exact same
-            # instant, only the first failure in the queue actually gets
-            # its can_accept_agent (and hence wait_queue registration)
-            # invoked - later simultaneous arrivals are silently skipped
-            # until a later retrigger, making queue-length assertions
-            # immediately after a simultaneous arrival unreliable.
+            # simulated ticks rather than simultaneously.
             entry = m._add_component(
                 TimedTrack, "0", f"1-{i}", f"E{i}", traversal_time=10 * (i + 1), capacity=1
             )
@@ -152,16 +146,8 @@ class TestBlockExclusiveZone:
         assert bez.occupied is True
         assert len(bez.wait_queue) == 1
 
-        # Note: T-2 (arriving at t=30) is *not* asserted to be in
-        # wait_queue at this point, even though it has already arrived.
-        # SpurResource's put-queue is strictly FIFO: T-2's own request
-        # re-triggers a scan from the head of the queue, hits T-1's
-        # already-pending-and-failed request first, and stops there
-        # without ever reaching (and registering) T-2 - correct FIFO
-        # behaviour, but it means wait_queue only reflects requests SimPy
-        # has actually attempted, not every train that has physically
-        # arrived. So this test checks final ordering rather than
-        # intermediate queue-length snapshots.
+        # T-2 arrives at t=30 and queues behind T-1. The zone's own wait
+        # queue is first come, first served, so entry order follows arrival.
         m.run(until=150)
 
         events = _read_agent_log(agent_log)
@@ -208,3 +194,50 @@ class TestBlockExclusiveZoneFirstSegmentRegression:
 
         intervals = _intervals_for_component(_read_agent_log(agent_log), zone.uid)
         assert set(intervals.keys()) == {"T-0", "T-1"}
+
+
+class TestBlockExclusiveZoneHeadOfLineRegression:
+    def test_train_inside_zone_is_not_blocked_by_refused_train_ahead_in_queue(self, tmp_path):
+        """A train refused by a zone must not block a request queued behind it
+        on the same component that the zone would allow.
+
+        T-in enters the zone and is on its way to the zone's last component,
+        `station`. T-out reaches `station` from outside first, so its request
+        heads the station's queue, and the zone refuses it because T-in holds
+        the zone. When T-in then asks for `station`, its request must still be
+        tried: it is moving within the zone, and the station is free.
+        Otherwise each train waits on the other for good (found as a head-on
+        gridlock on a single-track line).
+        """
+        agent_log = tmp_path / "agent.log"
+        m = Model(agent_log_file=str(agent_log))
+        bez = BlockExclusiveZone(m, "Z-1")
+
+        inside = m._add_component(
+            TimedTrack, "1", "2", "A", traversal_time=50, capacity=1, collection=bez
+        )
+        station = m._add_component(
+            TimedTrack, "2", "3", "A", traversal_time=20, capacity=1, collection=bez
+        )
+        entry_in = m._add_component(TimedTrack, "0", "1", "A", traversal_time=1, capacity=1)
+        exit_in = m._add_component(TimedTrack, "3", "4", "A", traversal_time=5, capacity=1)
+        entry_out = m._add_component(TimedTrack, "5", "3", "A", traversal_time=10, capacity=1)
+        exit_out = m._add_component(TimedTrack, "2", "6", "A", traversal_time=5, capacity=1)
+
+        for uid, components in (
+            ("T-in", (entry_in, inside, station, exit_in)),
+            ("T-out", (entry_out, station, exit_out)),
+        ):
+            route = Route()
+            for component in components:
+                route.append(component)
+            tour = Tour(creation_time=0, deletion_time=1000)
+            tour.append(route)
+            m.add_train(uid, max_speed=50, tour=tour)
+
+        m.start()
+        m.run(until=200)
+
+        intervals = _intervals_for_component(_read_agent_log(agent_log), station.uid)
+        assert set(intervals.keys()) == {"T-in", "T-out"}
+        assert intervals["T-in"][1] <= intervals["T-out"][0]
