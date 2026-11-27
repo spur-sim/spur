@@ -22,7 +22,7 @@ setuptools.setup(
         "Intended Audience :: Science/Research",
         "Natural Language :: English",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.11",
     install_requires=[
         "simpy",
         "networkx",
