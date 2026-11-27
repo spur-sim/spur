@@ -214,17 +214,68 @@ class BaseComponent(BaseItem, ABC):
 
 
 class ResourceComponent(BaseComponent):
+    """A component whose places are held in a `SpurResource`.
+
+    A place a train leaves can be held for `clearance_time` before the next
+    train may take it, for the time a signalling system takes to release a
+    route or a block behind a train. Together with the time a train takes to
+    pass through, it sets the minimum time between trains on the same place.
+
+    A component that tracks its own places (a block, a platform track) holds
+    the place itself through `_after_clearance`, and sets `_holds_own_places`
+    so this class doesn't also hold one of its resource's places.
+    """
+
     __name__ = "Base Resource Component"
+    _holds_own_places = False
 
     def __init__(
-        self, model, uid, resource: "SpurResource", jitter, collection
+        self, model, uid, resource: "SpurResource", jitter, collection, clearance_time=0
     ) -> None:
+        if clearance_time < 0:
+            raise ValueError("Clearance time must not be negative")
         self._res = resource
+        self._clearance_time = clearance_time
+        self._clearing = 0  # Places left but not yet clear, if not held by the subclass
         super().__init__(model, uid, jitter, collection)
 
     @property
     def resource(self):
         return self._res
+
+    @property
+    def clearance_time(self):
+        return self._clearance_time
+
+    def _after_clearance(self, free) -> None:
+        """Call `free` once the clearance time has passed, then offer the freed
+        place to the trains waiting for it. With no clearance time, call `free`
+        straight away and leave the queue to the caller, as before."""
+        if self._clearance_time <= 0:
+            free()
+            return
+
+        def clear():
+            yield self._model.timeout(self._clearance_time)
+            free()
+            self._res.process_queue()
+
+        self._model.process(clear())
+
+    def release_agent(self, agent):
+        if self._clearance_time > 0 and not self._holds_own_places:
+            self._clearing += 1
+
+            def free():
+                self._clearing -= 1
+
+            self._after_clearance(free)
+        return super().release_agent(agent)
+
+    def can_accept_agent(self, agent: "Agent") -> bool:
+        if self._clearing and len(self._res.users) + self._clearing >= self._res.capacity:
+            return False
+        return super().can_accept_agent(agent)
 
 
 class StoreComponent(BaseComponent):
