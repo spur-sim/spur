@@ -11,6 +11,10 @@ from spur.core.jitter import NoJitter
 
 from spur.core.exception import NotPositiveError
 
+# Marks a block or a station track a train has left that isn't clear yet, so
+# no train takes it. It isn't None, so the checks for a free place pass over it.
+_CLEARING = type("Clearing", (), {"__repr__": lambda self: "<clearing>"})()
+
 
 class TimedTrack(ResourceComponent):
     """A timed traversal component.
@@ -30,19 +34,24 @@ class TimedTrack(ResourceComponent):
         The number of agents the component can hold at once. Defaults to 1
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
     """
 
     __name__ = "TimedTrack"
     tags = ("general",)
 
     def __init__(
-        self, model, uid, traversal_time, capacity=1, jitter=NoJitter(), collection=None
+        self, model, uid, traversal_time, capacity=1, jitter=NoJitter(), collection=None,
+        clearance_time=0,
     ) -> None:
         if traversal_time <= 0:
             raise ValueError("Traversal time must be positive")
         self.traversal_time = traversal_time
         resource = SpurResource(model, self, capacity=capacity)
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
 
         self.simLog = logging.getLogger(
             f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
@@ -94,10 +103,15 @@ class MultiBlockTrack(ResourceComponent):
         evenly between its blocks
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
     """
 
     __name__ = "MultiBlockTrack"
     tags = ("urban", "line")
+    _holds_own_places = True
 
     def __init__(
         self,
@@ -108,6 +122,7 @@ class MultiBlockTrack(ResourceComponent):
         traversal_time,
         jitter=NoJitter(),
         collection=None,
+        clearance_time=0,
     ) -> None:
         if num_tracks <= 0 or num_blocks <= 0:
             raise ValueError("Number of tracks and blocks must both be positive")
@@ -132,7 +147,7 @@ class MultiBlockTrack(ResourceComponent):
             dict()
         )  # Store SimPy events used to handle wait-queueing of trains between blocks
         resource = SpurResource(model, self, capacity=num_tracks * num_blocks)
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
         # Override the simulation logging information
         self.simLog = logging.getLogger(
             f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
@@ -243,6 +258,27 @@ class MultiBlockTrack(ResourceComponent):
 
         return empty_tracks[0]
 
+    def _leave_block(self, track: int, block: int, direction: int) -> None:
+        """Mark `block` left by a train going `direction`, and free it once clear:
+        reset the track's direction if it's empty, and let the train behind in,
+        or the trains waiting to enter if it's the entry block."""
+        self._blocks[track][block] = _CLEARING
+
+        def free():
+            self._blocks[track][block] = None
+            if self._blocks[track].count(None) == len(self._blocks[track]):
+                self._track_directions[track] = None
+            start = 0 if direction == 1 else self._num_blocks - 1
+            if block == start:
+                self._res.process_queue()
+            else:
+                behind = self._blocks[track][block - direction]
+                if isinstance(behind, Agent):
+                    self._train_waiting_events[behind.uid].succeed()
+                    self._train_waiting_events[behind.uid] = self._model.event()
+
+        self._after_clearance(free)
+
     def accept_agent(self, agent: Agent):
         direction = self._get_travel_direction(agent)
 
@@ -267,36 +303,17 @@ class MultiBlockTrack(ResourceComponent):
         direction = self._track_directions[t]
 
         # Upon release, train should be located at the final block, depending on the direction
-        if direction == 1:
-            b = self._num_blocks - 1
-            start = 0
-        else:
-            b = 0
-            start = self._num_blocks - 1
+        b = self._num_blocks - 1 if direction == 1 else 0
 
-        if self._blocks[t][b] is None or self._blocks[t][b].uid != agent.uid:
+        if self._blocks[t][b] is not agent:
             raise Exception(
                 "Cannot release the train since it has not yet traversed to the final block"
             )
 
-        # Remove train
-        self._blocks[t][b] = None
+        # Remove train, and free its block once clear
         del self._track_assignments[agent.uid]
         del self._train_waiting_events[agent.uid]
-
-        # If track is now all empty, reset direction info
-        if self._blocks[t].count(None) == len(self._blocks[t]):
-            self._track_directions[t] = None
-
-        # Take care of the train behind
-        if b == start:
-            # If leaving starting block, check if trains waiting outside the component could now enter
-            self._res.process_queue()
-        elif self._blocks[t][b - direction] is not None:
-            # If there is a train in previous block, allow it to enter current block
-            prev_agent = self._blocks[t][b - direction]
-            self._train_waiting_events[prev_agent.uid].succeed()
-            self._train_waiting_events[prev_agent.uid] = self._model.event()
+        self._leave_block(t, b, direction)
 
         return super().release_agent(agent)
 
@@ -351,19 +368,9 @@ class MultiBlockTrack(ResourceComponent):
                 if self._blocks[assigned_track][b + direction] is not None:
                     yield self._train_waiting_events[train.uid]
 
-                # Next block is unoccupied, shift train over
+                # Next block is clear, shift train over
                 self._blocks[assigned_track][b + direction] = train
-                self._blocks[assigned_track][b] = None
-
-                # Take care of the train behind
-                if b == start:
-                    # If leaving starting block, check if trains waiting outside the component could now enter
-                    self._res.process_queue()
-                elif self._blocks[assigned_track][b - direction] is not None:
-                    # If there is a train in previous block, allow it to enter current block
-                    prev_train = self._blocks[assigned_track][b - direction]
-                    self._train_waiting_events[prev_train.uid].succeed()
-                    self._train_waiting_events[prev_train.uid] = self._model.event()
+                self._leave_block(assigned_track, b, direction)
 
 
 class SimpleYard(ResourceComponent):
@@ -432,6 +439,10 @@ class SimpleStation(ResourceComponent):
         The average number of passengers alighting from the train at the station.
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
     """
 
     __name__ = "SimpleStation"
@@ -445,9 +456,10 @@ class SimpleStation(ResourceComponent):
         mean_alighting,
         jitter=NoJitter(),
         collection=None,
+        clearance_time=0,
     ) -> None:
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
         self._mean_boarding = mean_boarding
         self._mean_alighting = mean_alighting
         # Override the simulation logging information
@@ -496,6 +508,10 @@ class DynamicDwellStation(ResourceComponent):
         The marginal dwell time added per estimated boarding passenger.
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
     """
 
     __name__ = "DynamicDwellStation"
@@ -510,9 +526,10 @@ class DynamicDwellStation(ResourceComponent):
         coefficient_b,
         jitter=NoJitter(),
         collection=None,
+        clearance_time=0,
     ) -> None:
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
         if mean_arrival_rate < 0:
             raise ValueError("Mean arrival rate must be nonnegative")
         if coefficient_a < 0 or coefficient_b < 0:
@@ -573,10 +590,15 @@ class MultiTrackStation(ResourceComponent):
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
     collection : The `spur.core.collection.Collection`, optional
         The Collection object the component is a part of. Defaults to None.
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
     """
 
     __name__ = "MultiTrackStation"
     tags = ("urban", "line")
+    _holds_own_places = True
 
     def __init__(
         self,
@@ -591,6 +613,7 @@ class MultiTrackStation(ResourceComponent):
         dwell_scale: float,
         jitter=NoJitter(),
         collection=None,
+        clearance_time=0,
     ) -> None:
         self._bypass_time = bypass_time
         self._dwell_params = (dwell_c, dwell_d, dwell_loc, dwell_scale)
@@ -602,7 +625,7 @@ class MultiTrackStation(ResourceComponent):
         resource = SpurResource(
             model, self, capacity=num_stopping_tracks + num_bypass_tracks
         )
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
         # Override the simulation logging information
         self.simLog = logging.getLogger(
             f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
@@ -664,11 +687,13 @@ class MultiTrackStation(ResourceComponent):
         track_type, track_index = self._track_assignments[agent.uid].split("-")
         track_index = int(track_index)
 
-        if track_type == "S":
-            self._stopping_tracks[track_index] = None
-        else:
-            self._bypass_tracks[track_index] = None
+        tracks = self._stopping_tracks if track_type == "S" else self._bypass_tracks
+        tracks[track_index] = _CLEARING
 
+        def free():
+            tracks[track_index] = None
+
+        self._after_clearance(free)
         del self._track_assignments[agent.uid]
 
         return super().release_agent(agent)
@@ -713,6 +738,10 @@ class TimedStation(ResourceComponent):
         The baseline number of model steps a train dwells at the station
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
     """
 
     __name__ = "TimedStation"
@@ -725,12 +754,13 @@ class TimedStation(ResourceComponent):
         traversal_time,
         jitter=NoJitter(),
         collection=None,
+        clearance_time=0,
     ) -> None:
         resource = SpurResource(model, self, capacity=1)
         if traversal_time <= 0:
             raise ValueError("Traversal time must be positive")
         self.traversal_time = traversal_time
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
         # Override the simulation logging information
         self.simLog = logging.getLogger(
             f"{model.simLog.name}.track.{self.__name__}.{self.uid}"
@@ -770,6 +800,10 @@ class SimpleCrossover(ResourceComponent):
         The number of time steps required to traverse the component
     jitter : `spur.core.jitter.BaseJitter` child, optional
         The Jitter object used to perturb the base time. Defaults to `NoJitter`
+    clearance_time : int, optional
+        The model steps a place stays held after a train leaves it, before the next
+        train may take it, as for a signalling system to release the route behind
+        a train. Defaults to 0
 
     Raises
     ------
@@ -781,13 +815,14 @@ class SimpleCrossover(ResourceComponent):
     tags = ("general",)
 
     def __init__(
-        self, model, uid, traversal_time, jitter=NoJitter(), collection=None
+        self, model, uid, traversal_time, jitter=NoJitter(), collection=None,
+        clearance_time=0,
     ) -> None:
         if traversal_time <= 0:
             raise ValueError("Traversal time must be positive")
         self.traversal_time = traversal_time
         resource = SpurResource(model, self, capacity=1)
-        super().__init__(model, uid, resource, jitter, collection)
+        super().__init__(model, uid, resource, jitter, collection, clearance_time)
 
     @property
     def traversal_time(self):

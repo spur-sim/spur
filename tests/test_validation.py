@@ -398,7 +398,7 @@ class TestRegistry:
         required, optional = constructor_parameters(
             component_module.TimedTrack, skip=sorted(RESERVED_COMPONENT_ARGS)
         )
-        assert (required, optional) == (["traversal_time"], ["capacity"])
+        assert (required, optional) == (["traversal_time"], ["capacity", "clearance_time"])
 
     def test_variadic_parameters_are_left_out(self):
         class C:

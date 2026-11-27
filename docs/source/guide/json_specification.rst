@@ -82,6 +82,12 @@ Type                    ``args``
 ``SimpleCrossover``     ``traversal_time`` (int)
 ======================= ================================================================================================================================================================================================
 
+Every type except ``SimpleYard`` also takes ``clearance_time`` (int, default 0): how
+long a place a train leaves (a block, a station track, a crossover) stays held before
+the next train may take it, as for a signalling system to release the route behind a
+train. The minimum time between two trains on the same place is then the time the
+first takes to pass through it plus the clearance time.
+
 See the :ref:`Component reference <ref_component>` for full details on each
 class, including validation rules (most numeric parameters must be positive).
 
